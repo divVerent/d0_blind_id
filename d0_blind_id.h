@@ -5,7 +5,7 @@
 
 typedef struct d0_blind_id_s d0_blind_id_t;
 
-EXPORT WARN_UNUSED_RESULT d0_blind_id_t *d0_blind_id_new();
+EXPORT WARN_UNUSED_RESULT d0_blind_id_t *d0_blind_id_new(void);
 EXPORT void d0_blind_id_free(d0_blind_id_t *a);
 EXPORT void d0_blind_id_clear(d0_blind_id_t *ctx);
 EXPORT void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src);
@@ -27,8 +27,8 @@ EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challeng
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *msg, ssize_t *msglen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
-EXPORT 
-EXPORT void d0_blind_id_INITIALIZE();
-EXPORT void d0_blind_id_SHUTDOWN();
+
+EXPORT void d0_blind_id_INITIALIZE(void);
+EXPORT void d0_blind_id_SHUTDOWN(void);
 
 #endif

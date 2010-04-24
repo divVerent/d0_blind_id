@@ -31,7 +31,7 @@ static d0_bignum_t temp;
 
 #include <time.h>
 #include <stdio.h>
-void d0_bignum_INITIALIZE()
+void d0_bignum_INITIALIZE(void)
 {
 	FILE *f;
 	d0_bignum_init(&temp);
@@ -51,7 +51,7 @@ void d0_bignum_INITIALIZE()
 	}
 }
 
-void d0_bignum_SHUTDOWN()
+void d0_bignum_SHUTDOWN(void)
 {
 	d0_bignum_clear(&temp);
 	gmp_randclear(RANDSTATE);
@@ -94,7 +94,7 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	return bignum;
 }
 
-d0_bignum_t *d0_bignum_new()
+d0_bignum_t *d0_bignum_new(void)
 {
 	d0_bignum_t *b = d0_malloc(sizeof(d0_bignum_t));
 	mpz_init(b->z);

@@ -9,10 +9,10 @@ typedef struct d0_bignum_s d0_bignum_t;
 WARN_UNUSED_RESULT BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum);
 WARN_UNUSED_RESULT d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum);
 
-void d0_bignum_INITIALIZE();
-void d0_bignum_SHUTDOWN();
+void d0_bignum_INITIALIZE(void);
+void d0_bignum_SHUTDOWN(void);
 
-WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_new();
+WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_new(void);
 void d0_bignum_free(d0_bignum_t *a);
 void d0_bignum_init(d0_bignum_t *b);
 void d0_bignum_clear(d0_bignum_t *a);
