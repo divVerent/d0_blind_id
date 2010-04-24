@@ -27,17 +27,33 @@ struct d0_bignum_s
 };
 
 static gmp_randstate_t RANDSTATE;
+static d0_bignum_t temp;
 
 #include <time.h>
+#include <stdio.h>
 void d0_bignum_INITIALIZE()
 {
-	gmp_randinit_default(RANDSTATE);
-	gmp_randseed_ui(RANDSTATE, time(NULL)); // TODO seed
+	FILE *f;
+	d0_bignum_init(&temp);
+	gmp_randinit_mt(RANDSTATE);
+	gmp_randseed_ui(RANDSTATE, time(NULL));
+	f = fopen("/dev/random", "rb");
+	if(f)
+	{
+		unsigned char buf[256];
+		if(fread(buf, sizeof(buf), 1, f) == 1)
+		{
+			mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
+			gmp_randseed(RANDSTATE, temp.z);
+		}
+		fclose(f);
+	}
 }
 
 void d0_bignum_SHUTDOWN()
 {
-	// free RANDSTATE
+	d0_bignum_clear(&temp);
+	gmp_randclear(RANDSTATE);
 }
 
 BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
@@ -112,10 +128,9 @@ int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
-	static d0_bignum_t *temp = NULL; if(!temp) temp = d0_bignum_new();
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_sub(temp->z, max->z, min->z);
-	mpz_urandomm(r->z, RANDSTATE, temp->z);
+	mpz_sub(temp.z, max->z, min->z);
+	mpz_urandomm(r->z, RANDSTATE, temp.z);
 	mpz_add(r->z, r->z, min->z);
 	return r;
 }

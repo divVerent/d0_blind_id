@@ -3,6 +3,7 @@
 
 #include <stdlib.h> // size_t
 
+#define EXPORT __attribute__((__visibility__("default")))
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #define BOOL int
 
