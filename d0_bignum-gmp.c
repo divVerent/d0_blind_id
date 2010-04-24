@@ -41,6 +41,7 @@ void d0_bignum_INITIALIZE()
 	if(f)
 	{
 		unsigned char buf[256];
+		setbuf(f, NULL);
 		if(fread(buf, sizeof(buf), 1, f) == 1)
 		{
 			mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
