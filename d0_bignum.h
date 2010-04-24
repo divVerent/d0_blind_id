@@ -1,3 +1,6 @@
+#ifndef __D0_BIGNUM_H__
+#define __D0_BIGNUM_H__
+
 #include "d0.h"
 #include "d0_iobuf.h"
 
@@ -36,3 +39,5 @@ WARN_UNUSED_RESULT int d0_bignum_isprime(d0_bignum_t *r, int param);
 WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b);
 
 WARN_UNUSED_RESULT char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base); // allocates!
+
+#endif

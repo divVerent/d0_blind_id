@@ -1,3 +1,6 @@
+#ifndef __D0_BLIND_ID_H__
+#define __D0_BLIND_ID_H__
+
 #include "d0.h"
 
 typedef struct d0_blind_id_s d0_blind_id_t;
@@ -27,3 +30,5 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(d0_blind_id_t *ctx, 
 
 void d0_blind_id_INITIALIZE();
 void d0_blind_id_SHUTDOWN();
+
+#endif

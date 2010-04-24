@@ -1,3 +1,6 @@
+#ifndef __D0_IOBUF_H__
+#define __D0_IOBUF_H__
+
 #include "d0.h"
 
 typedef struct d0_iobuf_s d0_iobuf_t;
@@ -11,3 +14,5 @@ WARN_UNUSED_RESULT size_t d0_iobuf_write_raw(d0_iobuf_t *buf, const void *s, siz
 WARN_UNUSED_RESULT size_t d0_iobuf_read_raw(d0_iobuf_t *buf, void *s, size_t n);
 WARN_UNUSED_RESULT BOOL d0_iobuf_write_packet(d0_iobuf_t *buf, const void *s, size_t n);
 WARN_UNUSED_RESULT BOOL d0_iobuf_read_packet(d0_iobuf_t *buf, void *s, size_t *n);
+
+#endif

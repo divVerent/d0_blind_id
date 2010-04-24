@@ -1,3 +1,6 @@
+#ifndef __SHA1_H__
+#define __SHA1_H__
+
 #define SHA_DATASIZE    64
 #define SHA_DATALEN     16
 #define SHA_DIGESTSIZE  20
@@ -27,3 +30,5 @@ void sha_copy(struct sha_ctx *dest, struct sha_ctx *src);
 			 | EXTRACT_UCHAR(s+3))
 
 unsigned char *sha(unsigned char *buffer, unsigned int len);
+
+#endif
