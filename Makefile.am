@@ -10,5 +10,5 @@ libblind_id_la_LDFLAGS = -versioninfo 0:0:0
 #   - incompatible interface change: c:r:a -> c+1:0:0
 #   - internal change: c:r:a -> c:r+1:a
 
-library_includedir = $(includedir)
-library_include_HEADERS = d0_blind_id.h
+library_includedir = $(includedir)/d0_blind_id
+library_include_HEADERS = d0_blind_id.h d0.h
