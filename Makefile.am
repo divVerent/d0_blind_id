@@ -12,3 +12,5 @@ libblind_id_la_LDFLAGS = -versioninfo 0:0:0
 
 library_includedir = $(includedir)/d0_blind_id
 library_include_HEADERS = d0_blind_id.h d0.h
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_HEADERS = d0_blind_id.pc

@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: Blind-ID
+Description: Library for user identification using RSA blind signatures
+Requires: 
+Version: @VERSION@
+Libs: -L${libdir} -lblind_id
+Cflags: -I${includedir}/blind_id
