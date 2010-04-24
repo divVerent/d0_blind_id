@@ -2,6 +2,4 @@
 
 set -ex
 
-aclocal
-automake
-autoconf
+autoreconf -i
