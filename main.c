@@ -46,7 +46,7 @@ void mysignal(int signo)
 int main(int argc, char **argv)
 {
 	char buf[65536]; size_t bufsize;
-	char buf2[65536]; size_t buf2size; ssize_t buf2ssize;
+	char buf2[65536]; size_t buf2size;
 	d0_blind_id_t *ctx_self, *ctx_other;
 
 	d0_blind_id_INITIALIZE();
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 		errx(8, "readpub2 fail");
 
 	n = 0;
-	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0;
+	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0, bench_dhkey1 = 0, bench_dhkey2 = 0;
 	BOOL status;
 	while(!quit)
 	{
@@ -117,19 +117,27 @@ int main(int argc, char **argv)
 		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, NULL))
 			errx(10, "challenge fail");
 		bench(&bench_resp);
-		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))
+		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, 1, buf2, buf2size, buf, &bufsize))
 			errx(11, "response fail");
 		bench(&bench_verify);
-		buf2ssize = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_verify(ctx_self, buf, bufsize, buf2, &buf2ssize, &status))
+		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_verify(ctx_self, buf, bufsize, buf2, &buf2size, &status))
 			errx(12, "verify fail");
-		if(buf2ssize != 11 || memcmp(buf2, "hello world", 11))
+		if(buf2size != 11 || memcmp(buf2, "hello world", 11))
 			errx(13, "hello fail");
 		if(!status)
 			errx(14, "signature fail");
+		bench(&bench_dhkey1);
+		bufsize = sizeof(buf); if(!d0_blind_id_sessionkey_public_id(ctx_self, buf, &bufsize))
+			errx(15, "dhkey1 fail");
+		bench(&bench_dhkey2);
+		buf2size = sizeof(buf2); if(!d0_blind_id_sessionkey_public_id(ctx_other, buf2, &buf2size))
+			errx(16, "dhkey2 fail");
 		bench(&bench_stop);
+		if(bufsize != buf2size || memcmp(buf, buf2, bufsize))
+			errx(17, "dhkey match fail");
 		++n;
 		if(n % 1024 == 0)
-			printf("auth=%f chall=%f resp=%f verify=%f\n", n/bench_auth, n/bench_chall, n/bench_resp, n/bench_verify);
+			printf("auth=%f chall=%f resp=%f verify=%f dh1=%f dh2=%f\n", n/bench_auth, n/bench_chall, n/bench_resp, n/bench_verify, n/bench_dhkey1, n/bench_dhkey2);
 	}
 
 	return 0;
