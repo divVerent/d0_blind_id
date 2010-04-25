@@ -96,22 +96,25 @@ int main(int argc, char **argv)
 
 	n = 0;
 	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0;
+	BOOL status;
 	while(!quit)
 	{
 		bench(&bench_auth);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, "hello world", 11, buf, &bufsize))
 			errx(9, "start fail");
 		bench(&bench_chall);
-		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, buf, bufsize, buf2, &buf2size))
+		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, buf, bufsize, buf2, &buf2size, NULL))
 			errx(10, "challenge fail");
 		bench(&bench_resp);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))
 			errx(11, "response fail");
 		bench(&bench_verify);
-		buf2ssize = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_verify(ctx_self, buf, bufsize, buf2, &buf2ssize))
+		buf2ssize = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_verify(ctx_self, buf, bufsize, buf2, &buf2ssize, &status))
 			errx(12, "verify fail");
 		if(buf2ssize != 11 || memcmp(buf2, "hello world", 11))
 			errx(13, "hello fail");
+		if(!status)
+			errx(14, "signature fail");
 		bench(&bench_stop);
 		++n;
 		if(n % 1024 == 0)

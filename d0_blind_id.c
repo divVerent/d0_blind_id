@@ -51,7 +51,7 @@ struct d0_blind_id_s
 
 	// public data (player ID public key, this is what the server gets to know)
 	d0_bignum_t *schnorr_4_to_s;
-	d0_bignum_t *schnorr_4_to_s_signature;
+	d0_bignum_t *schnorr_4_to_s_signature; // 0 when signature is invalid
 
 	// temp data
 	d0_bignum_t *rn; // random number blind signature
@@ -314,6 +314,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_start(d0_blind_id_t *ctx
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
 	CHECK_ASSIGN(ctx->schnorr_s, d0_bignum_rand_range(ctx->schnorr_s, zero, temp0));
 	CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_bignum_mod_pow(ctx->schnorr_4_to_s, four, ctx->schnorr_s, ctx->schnorr_G));
+	CHECK_ASSIGN(ctx->schnorr_4_to_s_signature, d0_bignum_zero(ctx->schnorr_4_to_s_signature));
 	return 1;
 
 fail:
@@ -509,7 +510,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, int is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, int is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen, BOOL *status)
 //   first run: get 4^s, 4^s signature
 //   1. check sig
 //   2. save HASH(4^r)
@@ -541,15 +542,14 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 		CHECK_ASSIGN(ctx->schnorr_4_to_s_signature, d0_iobuf_read_bignum(in, ctx->schnorr_4_to_s_signature));
 		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s_signature, zero) >= 0);
 		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s_signature, ctx->rsa_n) < 0);
-	}
 
-	// check signature of key (t = k^d, so, t^e = k)
-	CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_4_to_s_signature, ctx->rsa_e, ctx->rsa_n));
-	if(d0_bignum_cmp(temp0, ctx->schnorr_4_to_s))
-	{
-		// FAIL (not signed by Xonotic)
-		goto fail;
-		// TODO: accept the key anyway, but mark as failed signature!
+		// check signature of key (t = k^d, so, t^e = k)
+		CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_4_to_s_signature, ctx->rsa_e, ctx->rsa_n));
+		if(d0_bignum_cmp(temp0, ctx->schnorr_4_to_s))
+		{
+			// accept the key anyway, but mark as failed signature! will later return 0 in status
+			CHECK(d0_bignum_zero(ctx->schnorr_4_to_s_signature));
+		}
 	}
 
 	CHECK(d0_iobuf_read_raw(in, ctx->xnbh, SCHNORR_HASHSIZE));
@@ -560,6 +560,9 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 	CHECK_ASSIGN(ctx->e, d0_bignum_rand_bit_atmost(ctx->e, SCHNORR_BITS));
 
 	CHECK(d0_iobuf_write_bignum(out, ctx->e));
+
+	if(status)
+		*status = !!d0_bignum_cmp(ctx->schnorr_4_to_s_signature, zero);
 
 	d0_iobuf_close(in, NULL);
 	return d0_iobuf_close(out, outbuflen);
@@ -604,7 +607,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *msg, ssize_t *msglen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *msg, ssize_t *msglen, BOOL *status)
 //   1. read y = r + s * e mod order
 //   2. verify: g^y (g^s)^-e = g^(r+s*e-s*e) = g^r
 //      (check using H(g^r) which we know)
@@ -645,6 +648,9 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind
 		// FAIL (not owned by player)
 		goto fail;
 	}
+
+	if(status)
+		*status = !!d0_bignum_cmp(ctx->schnorr_4_to_s_signature, zero);
 
 	if(ctx->msglen <= (size_t) *msglen)
 		memcpy(msg, ctx->msg, ctx->msglen);

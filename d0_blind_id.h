@@ -23,9 +23,9 @@ EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_id(d0_blind_id_t *ctx, co
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_id_t *ctx, int is_first, char *message, size_t msglen, char *outbuf, size_t *outbuflen);
-EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, int is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen);
+EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, int is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen, BOOL *status);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen);
-EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *msg, ssize_t *msglen);
+EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *msg, ssize_t *msglen, BOOL *status);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
 
 EXPORT void d0_blind_id_INITIALIZE(void);
