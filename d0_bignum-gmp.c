@@ -37,7 +37,9 @@ void d0_bignum_INITIALIZE(void)
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
 	gmp_randseed_ui(RANDSTATE, time(NULL));
-	f = fopen("/dev/random", "rb");
+	f = fopen("/dev/urandom", "rb");
+	if(!f)
+		f = fopen("/dev/random", "rb");
 	if(f)
 	{
 		unsigned char buf[256];
