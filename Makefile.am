@@ -1,3 +1,5 @@
+ACLOCAL_AMFLAGS = -I m4
+
 bin_PROGRAMS = blind_id
 blind_id_SOURCES = main.c
 blind_id_LDADD = libblind_id.la
