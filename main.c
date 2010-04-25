@@ -25,12 +25,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 void bench(double *b)
 {
-	static struct timespec thistime, lasttime;
+	static struct timeval thistime, lasttime;
 	static double x = 0;
 	static double *lastclock = &x;
 	lasttime = thistime;
-	clock_gettime(CLOCK_MONOTONIC, &thistime);
-	*lastclock += (thistime.tv_sec - lasttime.tv_sec) + 0.000000001 * (thistime.tv_nsec - lasttime.tv_nsec);
+	gettimeofday(&thistime, NULL);
+	*lastclock += (thistime.tv_sec - lasttime.tv_sec) + 0.000001 * (thistime.tv_usec - lasttime.tv_usec);
 	lastclock = b;
 }
 

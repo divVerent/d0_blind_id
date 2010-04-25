@@ -4,7 +4,6 @@ AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
-AC_SEARCH_LIBS(clock_gettime, rt, , [AC_MSG_ERROR([GNU MP not found, see http://gmplib.org/])])
 AC_SEARCH_LIBS(__gmpz_init, gmp, , [AC_MSG_ERROR([GNU MP not found, see http://gmplib.org/])])
 
 dnl AC_CONFIG_HEADERS([config.h])
