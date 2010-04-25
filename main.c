@@ -53,12 +53,23 @@ int main(int argc, char **argv)
 	ctx_self = d0_blind_id_new();
 	ctx_other = d0_blind_id_new();
 
-	if(!d0_blind_id_generate_private_keys(ctx_self, 1024))
+	printf("keygen RSA...\n");
+	if(!d0_blind_id_generate_private_key(ctx_self, 1024))
 		errx(1, "keygen fail");
-	bufsize = sizeof(buf); if(!d0_blind_id_write_public_keys(ctx_self, buf, &bufsize))
+	bufsize = sizeof(buf); if(!d0_blind_id_write_public_key(ctx_self, buf, &bufsize))
 		errx(2, "writepub fail");
-	if(!d0_blind_id_read_public_keys(ctx_other, buf, bufsize))
+	if(!d0_blind_id_read_public_key(ctx_other, buf, bufsize))
 		errx(3, "readpub fail");
+
+	printf("keygen modulus...\n");
+	if(!d0_blind_id_generate_private_id_modulus(ctx_other))
+		errx(1, "keygen fail");
+	/*
+	bufsize = sizeof(buf); if(!d0_blind_id_write_private_id_modulus(ctx_other, buf, &bufsize))
+		errx(2, "writepub fail");
+	if(!d0_blind_id_read_private_id_modulus(ctx_self, buf, bufsize))
+		errx(3, "readpub fail");
+	*/
 
 	signal(SIGINT, mysignal);
 
@@ -100,10 +111,10 @@ int main(int argc, char **argv)
 	while(!quit)
 	{
 		bench(&bench_auth);
-		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, "hello world", 11, buf, &bufsize))
+		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, 1, "hello world", 11, buf, &bufsize))
 			errx(9, "start fail");
 		bench(&bench_chall);
-		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, buf, bufsize, buf2, &buf2size, NULL))
+		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, NULL))
 			errx(10, "challenge fail");
 		bench(&bench_resp);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))

@@ -223,28 +223,24 @@ void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src)
 	// TODO xnbh, msg, msglen?
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_keys(d0_blind_id_t *ctx, int k)
+WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key(d0_blind_id_t *ctx, int k)
 {
 	d0_blind_id_clear(ctx);
-	CHECK_ASSIGN(ctx->schnorr_G, d0_bignum_new());
-	CHECK(d0_dl_generate_key(k, ctx->schnorr_G));
-	CHECK_ASSIGN(ctx->rsa_e, d0_bignum_int(NULL, 65537));
-	CHECK_ASSIGN(ctx->rsa_d, d0_bignum_new());
-	CHECK_ASSIGN(ctx->rsa_n, d0_bignum_new());
+	CHECK_ASSIGN(ctx->rsa_e, d0_bignum_int(ctx->rsa_e, 65537));
+	CHECK_ASSIGN(ctx->rsa_d, d0_bignum_zero(ctx->rsa_d));
+	CHECK_ASSIGN(ctx->rsa_n, d0_bignum_zero(ctx->rsa_n));
 	CHECK(d0_rsa_generate_key(k+1, ctx->rsa_e, ctx->rsa_d, ctx->rsa_n)); // must fit G for sure
 	return 1;
 fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_keys(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
 	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
-	d0_blind_id_clear(ctx);
-	CHECK_ASSIGN(ctx->schnorr_G, d0_iobuf_read_bignum(in, NULL));
-	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, NULL));
-	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, NULL));
-	CHECK_ASSIGN(ctx->rsa_d, d0_iobuf_read_bignum(in, NULL));
+	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, ctx->rsa_n));
+	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, ctx->rsa_e));
+	CHECK_ASSIGN(ctx->rsa_d, d0_iobuf_read_bignum(in, ctx->rsa_d));
 	return d0_iobuf_close(in, NULL);
 
 fail:
@@ -252,13 +248,11 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_keys(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
 	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
-	d0_blind_id_clear(ctx);
-	CHECK_ASSIGN(ctx->schnorr_G, d0_iobuf_read_bignum(in, NULL));
-	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, NULL));
-	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, NULL));
+	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, ctx->rsa_n));
+	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, ctx->rsa_e));
 	return d0_iobuf_close(in, NULL);
 
 fail:
@@ -269,14 +263,13 @@ fail:
 #define USING(x) if(!(ctx->x)) return 0
 #define REPLACING(x)
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_keys(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out;
 
 	USING(rsa_n); USING(rsa_e); USING(rsa_d);
 
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
-	CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_G));
 	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_n));
 	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_e));
 	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_d));
@@ -287,14 +280,13 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_keys(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out;
 
-	USING(rsa_n); USING(rsa_e); USING(rsa_d);
+	USING(rsa_n); USING(rsa_e);
 
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
-	CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_G));
 	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_n));
 	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_e));
 	return d0_iobuf_close(out, outbuflen);
@@ -302,6 +294,44 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_keys(d0_blind_id_t *ctx, char *
 fail:
 	if(!d0_iobuf_close(out, outbuflen))
 		return 0;
+	return 0;
+}
+
+WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_modulus(d0_blind_id_t *ctx)
+{
+	USING(rsa_n);
+	REPLACING(schnorr_G);
+
+	CHECK_ASSIGN(ctx->schnorr_G, d0_bignum_zero(ctx->schnorr_G));
+	CHECK(d0_dl_generate_key(d0_bignum_size(ctx->rsa_n)-1, ctx->schnorr_G));
+	return 1;
+fail:
+	return 0;
+}
+
+WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_id_modulus(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
+{
+	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
+	CHECK_ASSIGN(ctx->schnorr_G, d0_iobuf_read_bignum(in, ctx->schnorr_G));
+	return d0_iobuf_close(in, NULL);
+
+fail:
+	d0_iobuf_close(in, NULL);
+	return 0;
+}
+
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_modulus(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+{
+	d0_iobuf_t *out;
+
+	USING(schnorr_G);
+
+	out = d0_iobuf_open_write(outbuf, *outbuflen);
+	CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_G));
+	return d0_iobuf_close(out, outbuflen);
+
+fail:
+	d0_iobuf_close(out, outbuflen);
 	return 0;
 }
 
@@ -461,7 +491,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_id_t *ctx, int is_first, char *msg, size_t msglen, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_id_t *ctx, BOOL is_first, BOOL send_modulus, char *msg, size_t msglen, char *outbuf, size_t *outbuflen)
 // start =
 //   first run: send 4^s, 4^s signature
 //   1. get random r, send HASH(4^r)
@@ -483,6 +513,8 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_
 	if(is_first)
 	{
 		// send ID
+		if(send_modulus)
+			CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_G));
 		CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_4_to_s));
 		CHECK(d0_iobuf_write_bignum(out, ctx->schnorr_4_to_s_signature));
 	}
@@ -510,7 +542,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, int is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen, BOOL *status)
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_blind_id_t *ctx, BOOL is_first, BOOL recv_modulus, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen, BOOL *status)
 //   first run: get 4^s, 4^s signature
 //   1. check sig
 //   2. save HASH(4^r)
@@ -522,11 +554,14 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 	if(is_first)
 	{
 		REPLACING(schnorr_4_to_s); REPLACING(k); REPLACING(schnorr_4_to_s_signature);
-		USING(schnorr_G); USING(rsa_n);
+		USING(rsa_n);
+		if(!recv_modulus)
+			USING(schnorr_G);
 	}
 	else
 	{
 		USING(schnorr_4_to_s_signature); USING(schnorr_4_to_s);
+		USING(schnorr_G);
 	}
 	USING(rsa_e); USING(rsa_n);
 	REPLACING(e); REPLACING(msg); REPLACING(msglen);
@@ -536,8 +571,14 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 
 	if(is_first)
 	{
-		CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_iobuf_read_bignum(in, NULL));
-		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s, zero) >= 0);
+		if(recv_modulus)
+		{
+			CHECK_ASSIGN(ctx->schnorr_G, d0_iobuf_read_bignum(in, ctx->schnorr_G));
+			CHECK(d0_bignum_cmp(ctx->schnorr_G, zero) > 0);
+			CHECK(d0_bignum_cmp(ctx->schnorr_G, ctx->rsa_n) < 0);
+		}
+		CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_iobuf_read_bignum(in, ctx->schnorr_4_to_s));
+		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s, zero) > 0);
 		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s, ctx->schnorr_G) < 0);
 		CHECK_ASSIGN(ctx->schnorr_4_to_s_signature, d0_iobuf_read_bignum(in, ctx->schnorr_4_to_s_signature));
 		CHECK(d0_bignum_cmp(ctx->schnorr_4_to_s_signature, zero) >= 0);
