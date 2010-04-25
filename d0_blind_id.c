@@ -66,6 +66,9 @@ struct d0_blind_id_s
 #define CHECK(x) do { if(!(x)) goto fail; } while(0)
 #define CHECK_ASSIGN(var, value) do { d0_bignum_t *val; val = value; if(!val) goto fail; var = val; } while(0)
 
+#define USING(x) if(!(ctx->x)) return 0
+#define REPLACING(x)
+
 static d0_bignum_t *zero, *one, *four, *temp0, *temp1, *temp2, *temp3, *temp4;
 
 void d0_blind_id_INITIALIZE(void)
@@ -205,6 +208,7 @@ void d0_blind_id_clear(d0_blind_id_t *ctx)
 	if(ctx->rn) d0_bignum_free(ctx->rn);
 	if(ctx->r) d0_bignum_free(ctx->r);
 	if(ctx->e) d0_bignum_free(ctx->e);
+	if(ctx->other_4_to_r) d0_bignum_free(ctx->other_4_to_r);
 	memset(ctx, 0, sizeof(*ctx));
 }
 
@@ -222,12 +226,15 @@ void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src)
 	if(src->r) ctx->r = d0_bignum_mov(NULL, src->r);
 	if(src->e) ctx->e = d0_bignum_mov(NULL, src->e);
 	if(src->other_4_to_r) ctx->other_4_to_r = d0_bignum_mov(NULL, src->other_4_to_r);
-	// TODO xnbh, msg, msglen?
+	memcpy(ctx->msg, src->msg, sizeof(ctx->msg));
+	ctx->msglen = src->msglen;
+	memcpy(ctx->xnbh, src->xnbh, sizeof(ctx->xnbh));
 }
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key(d0_blind_id_t *ctx, int k)
 {
-	d0_blind_id_clear(ctx);
+	REPLACING(rsa_e); REPLACING(rsa_d); REPLACING(rsa_n);
+
 	CHECK_ASSIGN(ctx->rsa_e, d0_bignum_int(ctx->rsa_e, 65537));
 	CHECK_ASSIGN(ctx->rsa_d, d0_bignum_zero(ctx->rsa_d));
 	CHECK_ASSIGN(ctx->rsa_n, d0_bignum_zero(ctx->rsa_n));
@@ -239,7 +246,12 @@ fail:
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
-	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
+	d0_iobuf_t *in = NULL;
+
+	REPLACING(rsa_n); REPLACING(rsa_e); REPLACING(rsa_d);
+
+	in = d0_iobuf_open_read(inbuf, inbuflen);
+
 	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, ctx->rsa_n));
 	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, ctx->rsa_e));
 	CHECK_ASSIGN(ctx->rsa_d, d0_iobuf_read_bignum(in, ctx->rsa_d));
@@ -252,7 +264,11 @@ fail:
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
-	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
+	d0_iobuf_t *in = NULL;
+
+	REPLACING(rsa_n); REPLACING(rsa_e);
+
+	in = d0_iobuf_open_read(inbuf, inbuflen);
 	CHECK_ASSIGN(ctx->rsa_n, d0_iobuf_read_bignum(in, ctx->rsa_n));
 	CHECK_ASSIGN(ctx->rsa_e, d0_iobuf_read_bignum(in, ctx->rsa_e));
 	return d0_iobuf_close(in, NULL);
@@ -261,9 +277,6 @@ fail:
 	d0_iobuf_close(in, NULL);
 	return 0;
 }
-
-#define USING(x) if(!(ctx->x)) return 0
-#define REPLACING(x)
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
@@ -313,7 +326,11 @@ fail:
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_id_modulus(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
-	d0_iobuf_t *in = d0_iobuf_open_read(inbuf, inbuflen);
+	d0_iobuf_t *in = NULL;
+
+	REPLACING(schnorr_G);
+
+	in = d0_iobuf_open_read(inbuf, inbuflen);
 	CHECK_ASSIGN(ctx->schnorr_G, d0_iobuf_read_bignum(in, ctx->schnorr_G));
 	return d0_iobuf_close(in, NULL);
 
@@ -339,7 +356,7 @@ fail:
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_start(d0_blind_id_t *ctx)
 {
-	// temps: temp0 order
+	// temps: temp0 = order
 	USING(schnorr_G);
 	REPLACING(schnorr_s); REPLACING(schnorr_4_to_s);
 
@@ -357,7 +374,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_request(d0_blind_id_t *c
 {
 	d0_iobuf_t *out = NULL;
 
-	// temps: temp0 temp1
+	// temps: temp0 rn^e, temp1 (4^s)*rn^e
 	USING(rsa_n); USING(rsa_e); USING(schnorr_4_to_s);
 	REPLACING(rn);
 
@@ -379,7 +396,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_answer_private_id_request(d0_blind_id_t *ctx
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
 
-	// temps: temp0 temp1
+	// temps: temp0 input, temp1 temp0^d
 	USING(rsa_d); USING(rsa_n);
 
 	in = d0_iobuf_open_read(inbuf, inbuflen);
@@ -402,7 +419,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_finish_private_id_request(d0_blind_id_t *ctx
 {
 	d0_iobuf_t *in = NULL;
 
-	// temps: temp0 temp1
+	// temps: temp0 input, temp1 rn^-1
 	USING(rn); USING(rsa_n);
 	REPLACING(schnorr_4_to_s_signature);
 
@@ -501,8 +518,9 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
-	size_t sz;
+	size_t sz = 0;
 
+	// temps: temp0 order, temp0 4^r
 	if(is_first)
 	{
 		USING(schnorr_4_to_s); USING(schnorr_4_to_s_signature);
@@ -553,20 +571,22 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
 
+	// temps: temp0 order, temp0 signature check
 	if(is_first)
 	{
-		REPLACING(schnorr_4_to_s); REPLACING(k); REPLACING(schnorr_4_to_s_signature);
-		USING(rsa_n);
-		if(!recv_modulus)
+		REPLACING(schnorr_4_to_s); REPLACING(schnorr_4_to_s_signature);
+		if(recv_modulus)
+			REPLACING(schnorr_G);
+		else
 			USING(schnorr_G);
 	}
 	else
 	{
-		USING(schnorr_4_to_s_signature); USING(schnorr_4_to_s);
+		USING(schnorr_4_to_s); USING(schnorr_4_to_s_signature);
 		USING(schnorr_G);
 	}
 	USING(rsa_e); USING(rsa_n);
-	REPLACING(e); REPLACING(msg); REPLACING(msglen);
+	REPLACING(e); REPLACING(msg); REPLACING(msglen); REPLACING(xnbh); REPLACING(r);
 
 	in = d0_iobuf_open_read(inbuf, inbuflen);
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
@@ -604,14 +624,11 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 
 	CHECK(d0_iobuf_write_bignum(out, ctx->e));
 
-	if(is_first)
-	{
-		// Diffie Hellmann
-		CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
-		CHECK_ASSIGN(ctx->r, d0_bignum_rand_range(ctx->r, zero, temp0));
-		CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
-		CHECK(d0_iobuf_write_bignum(out, temp0));
-	}
+	// Diffie Hellmann
+	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
+	CHECK_ASSIGN(ctx->r, d0_bignum_rand_range(ctx->r, zero, temp0));
+	CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
+	CHECK(d0_iobuf_write_bignum(out, temp0));
 
 	if(status)
 		*status = !!d0_bignum_cmp(ctx->schnorr_4_to_s_signature, zero);
@@ -625,7 +642,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_blind_id_t *ctx, BOOL is_first, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen)
 //   1. read challenge e of SCHNORR_BITS
 //   2. reply with r + s * e mod order
 {
@@ -633,6 +650,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_bli
 	d0_iobuf_t *out = NULL;
 
 	// temps: 0 order, 1 prod, 2 y, 3 e
+	REPLACING(other_4_to_r);
 	USING(schnorr_G); USING(schnorr_s); USING(r);
 
 	in = d0_iobuf_open_read(inbuf, inbuflen);
@@ -642,13 +660,10 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_response(d0_bli
 	CHECK(d0_bignum_cmp(temp3, zero) >= 0);
 	CHECK(d0_bignum_size(temp3) <= SCHNORR_BITS);
 
-	if(is_first)
-	{
-		// Diffie Hellmann
-		CHECK_ASSIGN(ctx->other_4_to_r, d0_iobuf_read_bignum(in, ctx->other_4_to_r));
-		CHECK(d0_bignum_cmp(ctx->other_4_to_r, zero) > 0);
-		CHECK(d0_bignum_cmp(ctx->other_4_to_r, ctx->schnorr_G) < 0);
-	}
+	// Diffie Hellmann
+	CHECK_ASSIGN(ctx->other_4_to_r, d0_iobuf_read_bignum(in, ctx->other_4_to_r));
+	CHECK(d0_bignum_cmp(ctx->other_4_to_r, zero) > 0);
+	CHECK(d0_bignum_cmp(ctx->other_4_to_r, ctx->schnorr_G) < 0);
 
 	// send response for schnorr ID scheme
 	// i.e. r + ctx->schnorr_s * temp3
@@ -678,6 +693,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind
 
 	// temps: 0 y 1 order
 	USING(e); USING(schnorr_G);
+	REPLACING(other_4_to_r);
 
 	in = d0_iobuf_open_read(inbuf, inbuflen);
 
@@ -762,7 +778,7 @@ BOOL d0_blind_id_sessionkey_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *
 	d0_iobuf_t *conv = NULL;
 	size_t n, sz;
 
-	USING(r); USING(other_4_to_r);
+	USING(r); USING(other_4_to_r); USING(schnorr_G);
 
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
 	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));

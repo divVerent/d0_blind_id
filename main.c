@@ -117,7 +117,7 @@ int main(int argc, char **argv)
 		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, NULL))
 			errx(10, "challenge fail");
 		bench(&bench_resp);
-		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, 1, buf2, buf2size, buf, &bufsize))
+		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))
 			errx(11, "response fail");
 		bench(&bench_verify);
 		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_verify(ctx_self, buf, bufsize, buf2, &buf2size, &status))
