@@ -1,7 +1,7 @@
 #ifndef __D0_H__
 #define __D0_H__
 
-#include <stdlib.h> // size_t
+#include <unistd.h> // size_t
 
 #define EXPORT __attribute__((__visibility__("default")))
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
