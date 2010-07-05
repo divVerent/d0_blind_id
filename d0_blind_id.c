@@ -470,6 +470,40 @@ fail:
 	return 0;
 }
 
+WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_id_request_camouflage(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
+{
+	d0_iobuf_t *in = NULL;
+
+	REPLACING(rsa_blind_signature_camouflage);
+
+	in = d0_iobuf_open_read(inbuf, inbuflen);
+
+	CHECK_ASSIGN(ctx->rsa_blind_signature_camouflage, d0_iobuf_read_bignum(in, ctx->rsa_blind_signature_camouflage));
+
+	return d0_iobuf_close(in, NULL);
+
+fail:
+	d0_iobuf_close(in, NULL);
+	return 0;
+}
+
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_request_camouflage(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+{
+	d0_iobuf_t *out = NULL;
+
+	USING(rsa_blind_signature_camouflage);
+
+	out = d0_iobuf_open_write(outbuf, *outbuflen);
+
+	CHECK(d0_iobuf_write_bignum(out, ctx->rsa_blind_signature_camouflage));
+
+	return d0_iobuf_close(out, outbuflen);
+
+fail:
+	d0_iobuf_close(out, outbuflen);
+	return 0;
+}
+
 WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_id(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)
 {
 	d0_iobuf_t *in = NULL;
