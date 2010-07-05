@@ -321,7 +321,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_key(d0_blind_id_t *ctx,
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
 
-	USING(schnorr_4_to_s);
+	USING(rsa_n); USING(rsa_e);
 
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
 	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));

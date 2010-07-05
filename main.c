@@ -57,6 +57,10 @@ int main(int argc, char **argv)
 	printf("keygen RSA...\n");
 	if(!d0_blind_id_generate_private_key(ctx_self, 1024))
 		errx(1, "keygen fail");
+	buf2size = sizeof(buf2) - 1;
+	if(!d0_blind_id_fingerprint64_public_key(ctx_self, buf2, &buf2size))
+		errx(2, "fp64 fail");
+	printf("key has fingerprint %s\n", buf2);
 	bufsize = sizeof(buf); if(!d0_blind_id_write_public_key(ctx_self, buf, &bufsize))
 		errx(2, "writepub fail");
 	if(!d0_blind_id_read_public_key(ctx_other, buf, bufsize))
