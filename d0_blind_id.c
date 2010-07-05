@@ -314,6 +314,38 @@ fail:
 	return 0;
 }
 
+WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+{
+	d0_iobuf_t *out = NULL;
+	static unsigned char convbuf[2048];
+	d0_iobuf_t *conv = NULL;
+	size_t sz, n;
+
+	USING(schnorr_4_to_s);
+
+	out = d0_iobuf_open_write(outbuf, *outbuflen);
+	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
+
+	CHECK(d0_iobuf_write_bignum(conv, ctx->rsa_n));
+	CHECK(d0_iobuf_write_bignum(conv, ctx->rsa_e));
+	CHECK(d0_iobuf_close(conv, &sz));
+	conv = NULL;
+
+	n = (*outbuflen / 4) * 3;
+	if(n > SHA_DIGESTSIZE)
+		n = SHA_DIGESTSIZE;
+	CHECK(d0_iobuf_write_raw(out, sha(convbuf, sz), n) == n);
+	CHECK(d0_iobuf_conv_base64_out(out));
+
+	return d0_iobuf_close(out, outbuflen);
+
+fail:
+	if(conv)
+		d0_iobuf_close(conv, &sz);
+	d0_iobuf_close(out, outbuflen);
+	return 0;
+}
+
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_modulus(d0_blind_id_t *ctx)
 {
 	USING(rsa_n);

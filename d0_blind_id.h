@@ -14,6 +14,7 @@ EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_key(d0_blind_id_t *ctx, 
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
+EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_modulus(d0_blind_id_t *ctx);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_id_modulus(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_modulus(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
