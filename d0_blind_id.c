@@ -492,7 +492,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_answer_private_id_request(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_answer_private_id_request(const d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
