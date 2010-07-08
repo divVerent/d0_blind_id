@@ -347,7 +347,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -364,7 +364,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_key(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -381,7 +381,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_key(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[2048];
@@ -440,7 +440,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_modulus(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_modulus(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -554,7 +554,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_request_camouflage(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id_request_camouflage(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -608,7 +608,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -627,7 +627,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_write_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 
@@ -875,7 +875,7 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[1024];
@@ -906,7 +906,7 @@ fail:
 	return 0;
 }
 
-BOOL d0_blind_id_sessionkey_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
+BOOL d0_blind_id_sessionkey_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[1024];
