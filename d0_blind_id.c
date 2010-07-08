@@ -189,10 +189,69 @@ BOOL d0_rsa_generate_key(size_t size, const d0_bignum_t *challenge, d0_bignum_t 
 
 	// n = temp0*temp1
 	CHECK(d0_bignum_mul(n, temp0, temp1));
-		
+
 	// d = challenge^-1 mod (temp0-1)(temp1-1)
 	CHECK(d0_bignum_mul(temp0, temp2, temp3));
 	CHECK(d0_bignum_mod_inv(d, challenge, temp0));
+	return 1;
+fail:
+	return 0;
+}
+
+BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_function reject, d0_blind_id_t *ctx, void *pass)
+{
+	// uses temp0 to temp4
+	int fail = 0;
+	int gcdfail = 0;
+	int pb = (size + 1)/2;
+	int qb = size - pb;
+	if(pb < 8)
+		pb = 8;
+	if(qb < 8)
+		qb = 8;
+        for (;;)
+	{
+		CHECK(d0_bignum_rand_bit_exact(temp0, pb));
+		if(d0_bignum_isprime(temp0, 10) == 0)
+			continue;
+		CHECK(d0_bignum_sub(temp2, temp0, one));
+		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, ctx->rsa_e));
+		if(!d0_bignum_cmp(temp4, one))
+			break;
+		if(++gcdfail == 3)
+			return 0;
+		++gcdfail;
+	}
+	gcdfail = 0;
+        for (;;)
+	{
+		CHECK(d0_bignum_rand_bit_exact(temp1, qb));
+		if(!d0_bignum_cmp(temp1, temp0))
+		{
+			if(++fail == 3)
+				return 0;
+		}
+		fail = 0;
+
+		// n = temp0*temp1
+		CHECK(d0_bignum_mul(ctx->rsa_n, temp0, temp1));
+		if(reject(ctx, pass))
+			continue;
+
+		if(d0_bignum_isprime(temp1, 10) == 0)
+			continue;
+		CHECK(d0_bignum_sub(temp3, temp1, one));
+		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp3, ctx->rsa_e));
+		if(!d0_bignum_cmp(temp4, one))
+			break;
+		if(++gcdfail == 3)
+			return 0;
+		++gcdfail;
+	}
+
+	// ctx->rsa_d = ctx->rsa_e^-1 mod (temp0-1)(temp1-1)
+	CHECK(d0_bignum_mul(temp0, temp2, temp3));
+	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp0));
 	return 1;
 fail:
 	return 0;
@@ -233,17 +292,25 @@ void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src)
 	memcpy(ctx->msghash, src->msghash, sizeof(ctx->msghash));
 }
 
-WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key(d0_blind_id_t *ctx, int k)
+WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key_fastreject(d0_blind_id_t *ctx, int k, d0_fastreject_function reject, void *pass)
 {
 	REPLACING(rsa_e); REPLACING(rsa_d); REPLACING(rsa_n);
 
 	CHECK_ASSIGN(ctx->rsa_e, d0_bignum_int(ctx->rsa_e, 65537));
 	CHECK_ASSIGN(ctx->rsa_d, d0_bignum_zero(ctx->rsa_d));
 	CHECK_ASSIGN(ctx->rsa_n, d0_bignum_zero(ctx->rsa_n));
-	CHECK(d0_rsa_generate_key(k+1, ctx->rsa_e, ctx->rsa_d, ctx->rsa_n)); // must fit G for sure
+	if(reject)
+		CHECK(d0_rsa_generate_key_fastreject(k+1, reject, ctx, pass)); // must fit G for sure
+	else
+		CHECK(d0_rsa_generate_key(k+1, ctx->rsa_e, ctx->rsa_d, ctx->rsa_n)); // must fit G for sure
 	return 1;
 fail:
 	return 0;
+}
+
+WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key(d0_blind_id_t *ctx, int k)
+{
+	return d0_blind_id_generate_private_key_fastreject(ctx, k, NULL, NULL);
 }
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen)

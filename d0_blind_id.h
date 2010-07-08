@@ -4,12 +4,14 @@
 #include "d0.h"
 
 typedef struct d0_blind_id_s d0_blind_id_t;
+typedef BOOL (*d0_fastreject_function) (d0_blind_id_t *ctx, void *pass);
 
 EXPORT WARN_UNUSED_RESULT d0_blind_id_t *d0_blind_id_new(void);
 EXPORT void d0_blind_id_free(d0_blind_id_t *a);
 EXPORT void d0_blind_id_clear(d0_blind_id_t *ctx);
 EXPORT void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key(d0_blind_id_t *ctx, int k);
+EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key_fastreject(d0_blind_id_t *ctx, int k, d0_fastreject_function reject, void *pass);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_private_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_read_public_key(d0_blind_id_t *ctx, const char *inbuf, size_t inbuflen);
 EXPORT WARN_UNUSED_RESULT BOOL d0_blind_id_write_private_key(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen);
