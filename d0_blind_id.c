@@ -281,7 +281,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t
 	if(src->rsa_d) CHECK_ASSIGN(ctx->rsa_d, d0_bignum_mov(NULL, src->rsa_d));
 	if(src->schnorr_G) CHECK_ASSIGN(ctx->schnorr_G, d0_bignum_mov(NULL, src->schnorr_G));
 	if(src->schnorr_s) CHECK_ASSIGN(ctx->schnorr_s, d0_bignum_mov(NULL, src->schnorr_s));
-	if(src->schnorr_4_to_s) CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_bignum_mov(NULL, ctx->schnorr_G));
+	if(src->schnorr_4_to_s) CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_bignum_mov(NULL, src->schnorr_4_to_s));
 	if(src->schnorr_4_to_s_signature) CHECK_ASSIGN(ctx->schnorr_4_to_s_signature, d0_bignum_mov(NULL, src->schnorr_4_to_s_signature));
 	if(src->rsa_blind_signature_camouflage) CHECK_ASSIGN(ctx->rsa_blind_signature_camouflage, d0_bignum_mov(NULL, src->rsa_blind_signature_camouflage));
 	if(src->r) CHECK_ASSIGN(ctx->r, d0_bignum_mov(NULL, src->r));
