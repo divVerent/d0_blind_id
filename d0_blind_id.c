@@ -273,23 +273,27 @@ void d0_blind_id_clear(d0_blind_id_t *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 }
 
-void d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src)
+WARN_UNUSED_RESULT BOOL d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t *src)
 {
 	d0_blind_id_clear(ctx);
-	if(src->rsa_n) ctx->rsa_n = d0_bignum_mov(NULL, src->rsa_n);
-	if(src->rsa_e) ctx->rsa_e = d0_bignum_mov(NULL, src->rsa_e);
-	if(src->rsa_d) ctx->rsa_d = d0_bignum_mov(NULL, src->rsa_d);
-	if(src->schnorr_G) ctx->schnorr_G = d0_bignum_mov(NULL, src->schnorr_G);
-	if(src->schnorr_s) ctx->schnorr_s = d0_bignum_mov(NULL, src->schnorr_s);
-	if(src->schnorr_4_to_s) ctx->schnorr_4_to_s = d0_bignum_mov(NULL, ctx->schnorr_G);
-	if(src->schnorr_4_to_s_signature) ctx->schnorr_4_to_s_signature = d0_bignum_mov(NULL, src->schnorr_4_to_s_signature);
-	if(src->rsa_blind_signature_camouflage) ctx->rsa_blind_signature_camouflage = d0_bignum_mov(NULL, src->rsa_blind_signature_camouflage);
-	if(src->r) ctx->r = d0_bignum_mov(NULL, src->r);
-	if(src->challenge) ctx->challenge = d0_bignum_mov(NULL, src->challenge);
-	if(src->other_4_to_r) ctx->other_4_to_r = d0_bignum_mov(NULL, src->other_4_to_r);
+	if(src->rsa_n) CHECK_ASSIGN(ctx->rsa_n, d0_bignum_mov(NULL, src->rsa_n));
+	if(src->rsa_e) CHECK_ASSIGN(ctx->rsa_e, d0_bignum_mov(NULL, src->rsa_e));
+	if(src->rsa_d) CHECK_ASSIGN(ctx->rsa_d, d0_bignum_mov(NULL, src->rsa_d));
+	if(src->schnorr_G) CHECK_ASSIGN(ctx->schnorr_G, d0_bignum_mov(NULL, src->schnorr_G));
+	if(src->schnorr_s) CHECK_ASSIGN(ctx->schnorr_s, d0_bignum_mov(NULL, src->schnorr_s));
+	if(src->schnorr_4_to_s) CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_bignum_mov(NULL, ctx->schnorr_G));
+	if(src->schnorr_4_to_s_signature) CHECK_ASSIGN(ctx->schnorr_4_to_s_signature, d0_bignum_mov(NULL, src->schnorr_4_to_s_signature));
+	if(src->rsa_blind_signature_camouflage) CHECK_ASSIGN(ctx->rsa_blind_signature_camouflage, d0_bignum_mov(NULL, src->rsa_blind_signature_camouflage));
+	if(src->r) CHECK_ASSIGN(ctx->r, d0_bignum_mov(NULL, src->r));
+	if(src->challenge) CHECK_ASSIGN(ctx->challenge, d0_bignum_mov(NULL, src->challenge));
+	if(src->other_4_to_r) CHECK_ASSIGN(ctx->other_4_to_r, d0_bignum_mov(NULL, src->other_4_to_r));
 	memcpy(ctx->msg, src->msg, sizeof(ctx->msg));
 	ctx->msglen = src->msglen;
 	memcpy(ctx->msghash, src->msghash, sizeof(ctx->msghash));
+	return 0;
+fail:
+	d0_blind_id_clear(ctx);
+	return 1;
 }
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key_fastreject(d0_blind_id_t *ctx, int k, d0_fastreject_function reject, void *pass)
