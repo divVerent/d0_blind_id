@@ -290,10 +290,10 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_copy(d0_blind_id_t *ctx, const d0_blind_id_t
 	memcpy(ctx->msg, src->msg, sizeof(ctx->msg));
 	ctx->msglen = src->msglen;
 	memcpy(ctx->msghash, src->msghash, sizeof(ctx->msghash));
-	return 0;
+	return 1;
 fail:
 	d0_blind_id_clear(ctx);
-	return 1;
+	return 0;
 }
 
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_key_fastreject(d0_blind_id_t *ctx, int k, d0_fastreject_function reject, void *pass)
