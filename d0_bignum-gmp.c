@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "d0_bignum.h"
 
 #include <gmp.h>
+#include <string.h>
 
 struct d0_bignum_s
 {
@@ -93,6 +94,54 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	{
 		mpz_set_ui(bignum->z, 0);
 	}
+	return bignum;
+}
+
+ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t bufsize)
+{
+	size_t count;
+	count = (mpz_sizeinbase(bignum->z, 2) + 7) / 8;
+	if(count > bufsize)
+		return -1;
+	if(bufsize > count)
+	{
+		// pad from left (big endian numbers!)
+		memset(buf, 0, bufsize - count);
+		buf += bufsize - count;
+	}
+	bufsize = count;
+	mpz_export(buf, &bufsize, 1, 1, 0, 0, bignum->z);
+	if(bufsize > count)
+	{
+		// REALLY BAD
+		// mpz_sizeinbase lied to us
+		// buffer overflow
+		// there is no sane way whatsoever to handle this
+		abort();
+	}
+	if(bufsize < count)
+	{
+		// BAD
+		// mpz_sizeinbase lied to us
+		// move the number
+		if(bufsize == 0)
+		{
+			memset(buf, 0, count);
+		}
+		else
+		{
+			memmove(buf + count - bufsize, buf, bufsize);
+			memset(buf, 0, count - bufsize);
+		}
+	}
+	return bufsize;
+}
+
+d0_bignum_t *d0_bignum_import_unsigned(d0_bignum_t *bignum, const void *buf, size_t bufsize)
+{
+	size_t count;
+	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
+	mpz_import(bignum->z, bufsize, 1, 1, 0, 0, buf);
 	return bignum;
 }
 
