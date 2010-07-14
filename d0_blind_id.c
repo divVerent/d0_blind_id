@@ -198,6 +198,39 @@ fail:
 	return 0;
 }
 
+WARN_UNUSED_RESULT BOOL d0_longhash_destructive(d0_bignum_t *clobberme, char *outbuf, size_t *outbuflen)
+{
+	d0_iobuf_t *out = NULL;
+	static unsigned char convbuf[1024];
+	d0_iobuf_t *conv = NULL;
+	size_t n, sz;
+
+	n = *outbuflen;
+	while(n > SHA_DIGESTSIZE)
+	{
+		conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
+		CHECK(d0_iobuf_write_bignum(conv, temp0));
+		CHECK(d0_iobuf_close(conv, &sz));
+		conv = NULL;
+		memcpy(outbuf, sha(convbuf, sz), SHA_DIGESTSIZE);
+		outbuf += SHA_DIGESTSIZE;
+		n -= SHA_DIGESTSIZE;
+		CHECK(d0_bignum_add(temp0, temp0, one));
+	}
+	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
+	CHECK(d0_iobuf_write_bignum(conv, temp0));
+	CHECK(d0_iobuf_close(conv, &sz));
+	conv = NULL;
+	memcpy(outbuf, sha(convbuf, sz), n);
+
+	return d0_iobuf_close(out, outbuflen);
+
+fail:
+	if(conv)
+		d0_iobuf_close(conv, &sz);
+	return 0;
+}
+
 void d0_blind_id_clear(d0_blind_id_t *ctx)
 {
 	if(ctx->rsa_n) d0_bignum_free(ctx->rsa_n);
@@ -841,33 +874,13 @@ fail:
 
 BOOL d0_blind_id_sessionkey_public_id(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
-	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[1024];
-	d0_iobuf_t *conv = NULL;
-	size_t n, sz;
-
 	USING(r); USING(other_4_to_r); USING(schnorr_G);
-
-	out = d0_iobuf_open_write(outbuf, *outbuflen);
-	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
 
 	// temps: temp0 result
 	CHECK(d0_bignum_mod_pow(temp0, ctx->other_4_to_r, ctx->r, ctx->schnorr_G));
-	CHECK(d0_iobuf_write_bignum(conv, temp0));
-	CHECK(d0_iobuf_close(conv, &sz));
-	conv = NULL;
-
-	n = *outbuflen;
-	if(n > SHA_DIGESTSIZE)
-		n = SHA_DIGESTSIZE;
-	CHECK(d0_iobuf_write_raw(out, sha(convbuf, sz), n) == n);
-
-	return d0_iobuf_close(out, outbuflen);
+	return d0_longhash_destructive(temp0, outbuf, outbuflen);
 
 fail:
-	if(conv)
-		d0_iobuf_close(conv, &sz);
-	d0_iobuf_close(out, outbuflen);
 	return 0;
 }
 
