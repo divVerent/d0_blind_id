@@ -119,8 +119,10 @@ int main(int argc, char **argv)
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, 1, "hello world", 11, buf, &bufsize))
 			errx(9, "start fail");
 		bench(&bench_chall);
-		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, NULL))
+		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, &status))
 			errx(10, "challenge fail");
+		if(!status)
+			errx(14, "signature prefail");
 		bench(&bench_resp);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))
 			errx(11, "response fail");
@@ -132,10 +134,10 @@ int main(int argc, char **argv)
 		if(!status)
 			errx(14, "signature fail");
 		bench(&bench_dhkey1);
-		bufsize = sizeof(buf); if(!d0_blind_id_sessionkey_public_id(ctx_self, buf, &bufsize))
+		bufsize = 20; if(!d0_blind_id_sessionkey_public_id(ctx_self, buf, &bufsize))
 			errx(15, "dhkey1 fail");
 		bench(&bench_dhkey2);
-		buf2size = sizeof(buf2); if(!d0_blind_id_sessionkey_public_id(ctx_other, buf2, &buf2size))
+		buf2size = 20; if(!d0_blind_id_sessionkey_public_id(ctx_other, buf2, &buf2size))
 			errx(16, "dhkey2 fail");
 		bench(&bench_stop);
 		if(bufsize != buf2size || memcmp(buf, buf2, bufsize))

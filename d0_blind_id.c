@@ -258,36 +258,28 @@ fail:
 	return 0;
 }
 
-WARN_UNUSED_RESULT BOOL d0_longhash_destructive(d0_bignum_t *clobberme, char *outbuf, size_t *outbuflen)
+WARN_UNUSED_RESULT BOOL d0_longhash_destructive(d0_bignum_t *clobberme, char *outbuf, size_t outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[1024];
-	d0_iobuf_t *conv = NULL;
 	size_t n, sz;
 
-	n = *outbuflen;
+	n = outbuflen;
 	while(n > SHA_DIGESTSIZE)
 	{
-		conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
-		CHECK(d0_iobuf_write_bignum(conv, temp0));
-		CHECK(d0_iobuf_close(conv, &sz));
-		conv = NULL;
+		sz = (d0_bignum_size(clobberme) + 7) / 8;
+		CHECK(d0_bignum_export_unsigned(clobberme, convbuf, sizeof(convbuf)) >= 0);
 		memcpy(outbuf, sha(convbuf, sz), SHA_DIGESTSIZE);
 		outbuf += SHA_DIGESTSIZE;
 		n -= SHA_DIGESTSIZE;
-		CHECK(d0_bignum_add(temp0, temp0, one));
+		CHECK(d0_bignum_add(clobberme, clobberme, one));
 	}
-	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
-	CHECK(d0_iobuf_write_bignum(conv, temp0));
-	CHECK(d0_iobuf_close(conv, &sz));
-	conv = NULL;
+	sz = (d0_bignum_size(clobberme) + 7) / 8;
+	CHECK(d0_bignum_export_unsigned(clobberme, convbuf, sizeof(convbuf)) >= 0);
 	memcpy(outbuf, sha(convbuf, sz), n);
-
-	return d0_iobuf_close(out, outbuflen);
+	return 1;
 
 fail:
-	if(conv)
-		d0_iobuf_close(conv, &sz);
 	return 0;
 }
 
@@ -513,7 +505,7 @@ fail:
 WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_request(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[2048];
+	static unsigned char convbuf[2048], shabuf[2048];
 	size_t sz;
 
 	// temps: temp0 rsa_blind_signature_camouflage^challenge, temp1 (4^s)*rsa_blind_signature_camouflage^challenge
@@ -524,10 +516,15 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_request(d0_blind_id_t *c
 
 	CHECK_ASSIGN(ctx->rsa_blind_signature_camouflage, d0_bignum_rand_bit_atmost(ctx->rsa_blind_signature_camouflage, d0_bignum_size(ctx->rsa_n)));
 	CHECK(d0_bignum_mod_pow(temp0, ctx->rsa_blind_signature_camouflage, ctx->rsa_e, ctx->rsa_n));
-	// we will actually sign SHA(4^s) to prevent a malleability attack!
-	sz = (d0_bignum_size(ctx->schnorr_4_to_s) + 7) / 8;
-	CHECK(d0_bignum_export_unsigned(ctx->schnorr_4_to_s, convbuf, sz) >= 0);
-	CHECK(d0_bignum_import_unsigned(temp2, sha(convbuf, sz), SHA_DIGESTSIZE));
+
+	// we will actually sign HA(4^s) to prevent a malleability attack!
+	CHECK(d0_bignum_mov(temp2, ctx->schnorr_4_to_s));
+	sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
+	if(sz > sizeof(shabuf))
+		sz = sizeof(shabuf);
+	CHECK(d0_longhash_destructive(temp2, shabuf, sz));
+	CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+
 	// hash complete
 	CHECK(d0_bignum_mod_mul(temp1, temp2, temp0, ctx->rsa_n));
 	CHECK(d0_iobuf_write_bignum(out, temp1));
@@ -751,7 +748,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[2048];
+	static unsigned char shabuf[2048];
 	size_t sz;
 
 	// temps: temp0 order, temp0 signature check
@@ -791,11 +788,18 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_challenge(d0_bl
 
 		// check signature of key (t = k^d, so, t^challenge = k)
 		CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_H_4_to_s_signature, ctx->rsa_e, ctx->rsa_n));
+
 		// we will actually sign SHA(4^s) to prevent a malleability attack!
-		sz = (d0_bignum_size(ctx->schnorr_4_to_s) + 7) / 8;
-		CHECK(d0_bignum_export_unsigned(ctx->schnorr_4_to_s, convbuf, sz) >= 0);
-		CHECK(d0_bignum_import_unsigned(temp2, sha(convbuf, sz), SHA_DIGESTSIZE));
+		CHECK(d0_bignum_mov(temp2, ctx->schnorr_4_to_s));
+		sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
+		if(sz > sizeof(shabuf))
+			sz = sizeof(shabuf);
+		CHECK(d0_longhash_destructive(temp2, shabuf, sz));
+		CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+
+		// + 7 / 8 is too large, so let's mod it
 		CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
+
 		// hash complete
 		if(d0_bignum_cmp(temp0, temp1))
 		{
@@ -966,7 +970,7 @@ BOOL d0_blind_id_sessionkey_public_id(const d0_blind_id_t *ctx, char *outbuf, si
 
 	// temps: temp0 result
 	CHECK(d0_bignum_mod_pow(temp0, ctx->other_4_to_r, ctx->r, ctx->schnorr_G));
-	return d0_longhash_destructive(temp0, outbuf, outbuflen);
+	return d0_longhash_destructive(temp0, outbuf, *outbuflen);
 
 fail:
 	return 0;

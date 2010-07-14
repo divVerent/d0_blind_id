@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <gmp.h>
 #include <string.h>
+#include <stdlib.h>
 
 struct d0_bignum_s
 {
