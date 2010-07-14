@@ -32,9 +32,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define SCHNORR_BITS 20
 // probability of cheat: 2^(-bits+1)
 
-#define SCHNORR_HASHSIZE 3
-// cannot be >= SHA_DIGEST_LENGTH
+#define SCHNORR_HASHSIZE SHA_DIGESTSIZE
+// cannot be >= SHA_DIGESTSIZE
 // *8 must be >= SCHNORR_BITS
+// no need to save bits here
 
 #define MSGSIZE 640 // ought to be enough for anyone
 
@@ -492,7 +493,6 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_generate_private_id_start(d0_blind_id_t *ctx
 	REPLACING(schnorr_s); REPLACING(schnorr_4_to_s);
 
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
-	CHECK(d0_bignum_shl(temp1, ctx->schnorr_G, -1));
 	CHECK_ASSIGN(ctx->schnorr_s, d0_bignum_rand_range(ctx->schnorr_s, zero, temp0));
 	CHECK_ASSIGN(ctx->schnorr_4_to_s, d0_bignum_mod_pow(ctx->schnorr_4_to_s, four, ctx->schnorr_s, ctx->schnorr_G));
 	CHECK_ASSIGN(ctx->schnorr_H_4_to_s_signature, d0_bignum_zero(ctx->schnorr_H_4_to_s_signature));

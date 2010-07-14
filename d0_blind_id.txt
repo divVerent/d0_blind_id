@@ -1,0 +1,113 @@
+Blind-ID library for user identification using RSA blind signatures
+Copyright (C) 2010  Rudolf Polzer
+
+Cryptographic protocol description
+
+Each user identifies by an ID, signed by a certificate authority owning a
+private key.
+
+Common parameters:
+	- a security parameter k (sized to be viable for a RSA modulus)
+	- a small parameter k0 (for Schnorr identification)
+	- a prime p of size k-1, where (p-1)/2 is a prime too
+	- a generator g of a cyclic multiplicative subgroup of G of Z_p (i.e. a
+	  square in Z_p); in our implementation, this is always 4; this group has
+	  order (p-1)/2
+	- a hash function h: bitstring -> bitstring of short output; in our
+	  implementation, this is SHA-1
+	- for each n, a hash function h': Z_n -> Z_n; in our implementation, this
+	  is given below
+	- for each n > p, a canonical injection I from Z_p to Z_n
+
+A public key consists of:
+	- a RSA modulus n of size k, where n > p
+	- a RSA public key e; in our implementation, we always choose 65537
+	- the "fingerprint" is base64(SHA1("n || e"))
+
+A private key additionally consists of:
+	- a RSA private key d
+
+A public ID consists of:
+	- a value S in G
+	- a value H = h'(I(S)) in Z_n
+	- the "fingerprint" is base64(SHA1("S"))
+
+A private ID additionally consists of:G
+	- a value s in [0, |G|[, with S = g^s in G
+
+
+
+ID generation protocol:
+	- Client generates s in [0, |G|[ at random
+	- Client calculates S = g^s in G
+	- Client generates a camouflage value c in Z*_n at random
+	- Client sends x = c^e * h'(I(S)) in Z_n
+	- Server receives x
+	- Server sends y = x^d in Z_n
+	- Client receives y
+	- Client calculates H = y * c^-1 in Z_n
+
+Note that this is a RSA blind signature - the value the server receives is
+distributed uniformly in Z*_n, assuming h'(I(S)) is member of Z*_n which we can
+assume it is (otherwise we can find a factorization of the RSA modulus n).
+H obviously fulfills H = h'(I(S)) in Z_n. The goal of this is to make it
+impossible for the server to know the ID that has been signed, to make the ID
+not traceable even if the server identifies the user performing the signing.
+
+
+
+Authentication protocol:
+	Client provides a message m that is to be signed as part of the protocol
+	"start":
+	- Client sends S, H if this is the first round of the protocol
+	- Client generates r in [0, |G|[ at random
+	- Client sends x = h("g^r || m || g^r")
+	- Client sends m in plain
+	"challenge":
+	- Server receives S, H if this is the first round of the protocol
+	- Server verifies H = h'(I(S))
+	- Server receives x, m
+	- Server generates c in [0, 2^k0[ at random
+	- Server generates R in [0, |G|[ at random
+	- Server sends c and g^R
+	"response":
+	- Client receives c and g^R
+	- Client verifies that the received values are in the allowed ranges
+	- Client sends y = r + s * c mod |G|
+	- Client calculates K = (g^R)^r
+	"verify":
+	- Server receives y
+	- Server calculates z = g^y S^-c
+	- Server calculates x' = h("z || m || z")
+	- Server verifies x == x'
+	- Server calculates K = z^R
+
+Protocol variant: g and G can be also part of the public ID. In this case, g
+and G are sent as part of this protocol additionally to S, H.
+
+The protocols executed here are RSA signature, Schnorr identification and a
+Diffie Hellmann key exchange at the same time. The DH key exchange generates
+the same values on both sides only if the Schnorr identification scheme
+succeeds. If the protocol succeeds, the authenticity of m has been verified
+too.
+
+
+
+Low level protocol:
+	- "VLI" are sent in the format:
+	  - a sequence of bytes <cont> <b0..b6> in little endian order (one
+	    continuation bit + 7 bits per byte)
+	  - terminated by cont == 0
+	- "packets" are sent in the format:
+	  - VLI length
+	  - data
+	- "numbers" are sent in the format:
+	  - packet of the number's digits in big endian order, preceded by a sign
+        byte (0x03 = negative, 0x01 = positive, 0x00 = zero)
+	- all values are sent as "numbers", except for x which is sent raw
+	- strings (m) are sent as "packets"
+	- the || operation inside double quotes is defined in terms of this
+	  protocol, so h(z || m || z) actually encodes z as a "number" and m as a
+	  "packet"
+	- a value in double quotes is also defined in terms of this protocol, i.e.
+	  the length is preceded
