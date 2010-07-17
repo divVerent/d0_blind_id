@@ -22,7 +22,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <stdio.h>
 #include <string.h>
 #include "d0_bignum.h"
-#include "sha1.h"
+#include "sha2.h"
+
+// our SHA is SHA-256
+#define SHA_DIGESTSIZE 32
+const char *sha(const char *in, size_t len)
+{
+	static char h[32];
+	sha256(h, in, len);
+	return h;
+}
 
 // for zero knowledge, we need multiple instances of schnorr ID scheme... should normally be sequential
 // parallel schnorr ID is not provably zero knowledge :(

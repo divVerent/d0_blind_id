@@ -5,7 +5,7 @@ blind_id_SOURCES = main.c
 blind_id_LDADD = libd0_blind_id.la
 
 lib_LTLIBRARIES = libd0_blind_id.la
-libd0_blind_id_la_SOURCES = d0_bignum-gmp.c d0_blind_id.c d0.c d0_iobuf.c sha1.c
+libd0_blind_id_la_SOURCES = d0_bignum-gmp.c d0_blind_id.c d0.c d0_iobuf.c sha2.c
 libd0_blind_id_la_LDFLAGS = -versioninfo 1:0:1
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 # versioninfo:
