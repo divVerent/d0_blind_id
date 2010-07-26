@@ -39,6 +39,14 @@
 extern "C" {
 #endif
 
+#ifdef WIN32
+# define SHA2_USE_INTTYPES_H
+# define LITTLE_ENDIAN 1234
+# define BIG_ENDIAN    4321
+# define BYTE_ORDER LITTLE_ENDIAN 
+#else
+# define SHA2_USE_INTTYPES_H
+#endif
 
 /*
  * Import u_intXX_t size_t type definitions from system headers.  You

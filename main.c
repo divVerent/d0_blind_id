@@ -35,7 +35,9 @@ void bench(double *b)
 	lastclock = b;
 }
 
+#ifndef WIN32
 #include <sys/signal.h>
+#endif
 volatile BOOL quit = 0;
 void mysignal(int signo)
 {
@@ -43,7 +45,16 @@ void mysignal(int signo)
 	quit = 1;
 }
 
-#include <err.h>
+#include <stdarg.h>
+#include <stdlib.h>
+static void errx(int status, const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	exit(status);
+}
+
 int main(int argc, char **argv)
 {
 	char buf[65536]; size_t bufsize;
@@ -76,7 +87,9 @@ int main(int argc, char **argv)
 		errx(3, "readpub fail");
 	*/
 
+#ifndef WIN32
 	signal(SIGINT, mysignal);
+#endif
 
 	int n = 0;
 	double bench_gen = 0, bench_fp = 0, bench_stop = 0;
