@@ -29,7 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 const char *sha(const char *in, size_t len)
 {
 	static char h[32];
-	sha256(h, in, len);
+	d0_blind_id_util_sha256(h, in, len);
 	return h;
 }
 
@@ -996,4 +996,12 @@ void d0_blind_id_free(d0_blind_id_t *a)
 {
 	d0_blind_id_clear(a);
 	d0_free(a);
+}
+
+void d0_blind_id_util_sha256(char *out, const char *in, size_t n)
+{
+	SHA256_CTX context;
+	SHA256_Init(&context);
+	SHA256_Update(&context, (const unsigned char *) in, n);
+	return SHA256_Final((unsigned char *) out, &context);
 }

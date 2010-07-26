@@ -1062,15 +1062,3 @@ char* SHA384_Data(const sha2_byte* data, size_t len, char digest[SHA384_DIGEST_S
 	SHA384_Update(&context, data, len);
 	return SHA384_End(&context, digest);
 }
-
-
-
-
-
-void sha256(unsigned char *out, const unsigned char *in, int n)
-{
-	SHA256_CTX context;
-	SHA256_Init(&context);
-	SHA256_Update(&context, in, n);
-	return SHA256_Final(out, &context);
-}

@@ -153,8 +153,6 @@ void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 char* SHA512_End(SHA512_CTX*, char[SHA512_DIGEST_STRING_LENGTH]);
 char* SHA512_Data(const uint8_t*, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
 
-void sha256(unsigned char *out, const unsigned char *in, int n);
-
 #else /* SHA2_USE_INTTYPES_H */
 
 void SHA256_Init(SHA256_CTX *);
