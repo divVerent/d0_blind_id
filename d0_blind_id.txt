@@ -68,19 +68,21 @@ Authentication protocol:
 	- Server verifies H = h'(I(S))
 	- Server receives x, m
 	- Server generates c in [0, 2^k0[ at random
-	- Server generates R in [0, |G|[ at random
-	- Server sends c and g^R
+	- Server generates T in [0, |G|[ at random
+	- Server sends c and g^T
 	"response":
-	- Client receives c and g^R
+	- Client receives c and g^T
 	- Client verifies that the received values are in the allowed ranges
 	- Client sends y = r + s * c mod |G|
-	- Client calculates K = (g^R)^r
+	- Client generates t in [0, |G|[ at random
+	- Client g^(t-r)
+	- Client calculates K = (g^T)^t
 	"verify":
-	- Server receives y
+	- Server receives y and g^(t-r)
 	- Server calculates z = g^y S^-c
 	- Server calculates x' = h("z || m || z")
 	- Server verifies x == x'
-	- Server calculates K = z^R
+	- Server calculates K = (g^(t-r) * z)^T
 
 Protocol variant: g and G can be also part of the public ID. In this case, g
 and G are sent as part of this protocol additionally to S, H.

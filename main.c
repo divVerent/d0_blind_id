@@ -52,6 +52,7 @@ static void errx(int status, const char *format, ...)
 	va_list ap;
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
+	fputs("\n", stderr);
 	exit(status);
 }
 
