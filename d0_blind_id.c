@@ -921,8 +921,8 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_verify(d0_blind
 
 	// verify schnorr ID scheme
 	// we need 4^r = 4^temp0 (g^s)^-challenge
-	CHECK(d0_bignum_neg(temp1, ctx->challenge));
-	CHECK(d0_bignum_mod_pow(temp2, ctx->schnorr_g_to_s, temp1, ctx->schnorr_G));
+	CHECK(d0_bignum_mod_inv(temp1, ctx->schnorr_g_to_s, ctx->schnorr_G));
+	CHECK(d0_bignum_mod_pow(temp2, temp1, ctx->challenge, ctx->schnorr_G));
 	CHECK(d0_bignum_mod_pow(temp1, four, temp0, ctx->schnorr_G));
 	CHECK_ASSIGN(temp3, d0_bignum_mod_mul(temp3, temp1, temp2, ctx->schnorr_G));
 
