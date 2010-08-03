@@ -61,7 +61,8 @@ Authentication protocol:
 	"start":
 	- Client sends S, H if this is the first round of the protocol
 	- Client generates r in [0, |G|[ at random
-	- Client sends x = h("g^r || m || g^r")
+	- Client generates t in [0, |G|[ at random
+	- Client sends x = h("g^r || g^t || m || g^r || g^t")
 	- Client sends m in plain
 	"challenge":
 	- Server receives S, H if this is the first round of the protocol
@@ -74,15 +75,14 @@ Authentication protocol:
 	- Client receives c and g^T
 	- Client verifies that the received values are in the allowed ranges
 	- Client sends y = r + s * c mod |G|
-	- Client generates t in [0, |G|[ at random
-	- Client g^(t-r)
+	- Client sends g^t
 	- Client calculates K = (g^T)^t
 	"verify":
-	- Server receives y and g^(t-r)
+	- Server receives y and g^t
 	- Server calculates z = g^y S^-c
 	- Server calculates x' = h("z || m || z")
 	- Server verifies x == x'
-	- Server calculates K = (g^(t-r) * z)^T
+	- Server calculates K = (g^t)^T
 
 Protocol variant: g and G can be also part of the public ID. In this case, g
 and G are sent as part of this protocol additionally to S, H.
