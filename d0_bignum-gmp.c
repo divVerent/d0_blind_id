@@ -54,9 +54,18 @@ void d0_bignum_INITIALIZE(void)
 		{
 			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
 				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+			CryptReleaseContext(hCryptProv, 0);
 		}
 		else
+		{
+			if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
+			{
+				if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+					fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				CryptReleaseContext(hCryptProv, 0);
+			}
 			fprintf(stderr, "WARNING: could not initialize random number generator (CryptAcquireContext failed)\n");
+		}
 	}
 #else
 	f = fopen("/dev/urandom", "rb");
