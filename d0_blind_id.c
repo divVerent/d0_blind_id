@@ -80,6 +80,8 @@ struct d0_blind_id_s
 
 #define CHECK(x) do { if(!(x)) goto fail; } while(0)
 #define CHECK_ASSIGN(var, value) do { d0_bignum_t *val; val = value; if(!val) goto fail; var = val; } while(0)
+#define MPCHECK(x) do { if(!failed) if(!(x)) failed = 1; } while(0)
+#define MPCHECK_ASSIGN(var, value) do { if(!failed) { d0_bignum_t *val; val = value; if(val) var = val; else failed = 1; } } while(0)
 
 #define USING(x) if(!(ctx->x)) return 0
 #define REPLACING(x)
@@ -712,6 +714,7 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_
 	static unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
+	BOOL failed = 0;
 
 	// temps: temp0 order, temp0 4^r
 	if(is_first)
@@ -736,13 +739,26 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_
 	// generate random number r; x = g^r; send hash of x, remember r, forget x
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
 	CHECK_ASSIGN(ctx->r, d0_bignum_rand_range(ctx->r, zero, temp0));
-	CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
+	//CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
 
 	// initialize Signed Diffie Hellmann
-	CHECK(d0_dl_get_order(temp1, ctx->schnorr_G));
-	CHECK_ASSIGN(ctx->t, d0_bignum_rand_range(ctx->t, zero, temp1));
-	CHECK_ASSIGN(ctx->g_to_t, d0_bignum_mod_pow(ctx->g_to_t, four, ctx->t, ctx->schnorr_G));
+	// we already have the group order in temp1
+	CHECK_ASSIGN(ctx->t, d0_bignum_rand_range(ctx->t, zero, temp0));
 	// can we SOMEHOW do this with just one mod_pow?
+
+#pragma omp parallel default(shared) reduction(||:failed)
+#pragma omp sections
+	{
+#pragma omp section
+		{
+			MPCHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
+		}
+#pragma omp section
+		{
+			MPCHECK_ASSIGN(ctx->g_to_t, d0_bignum_mod_pow(ctx->g_to_t, four, ctx->t, ctx->schnorr_G));
+		}
+	}
+	CHECK(!failed);
 
 	// hash it, hash it, everybody hash it
 	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
