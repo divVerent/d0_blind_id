@@ -10,5 +10,5 @@ AC_ARG_ENABLE(rijndael, AS_HELP_STRING([--disable-rijndael], [Disable build of t
 AM_CONDITIONAL(ENABLE_RIJNDAEL, [test x$enable_aes = xyes])
 
 dnl AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile d0_blind_id.pc])
+AC_CONFIG_FILES([Makefile d0_blind_id.pc d0_rijndael.pc])
 AC_OUTPUT
