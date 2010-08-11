@@ -17,9 +17,16 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef WIN32
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
 #include "d0_bignum.h"
 
 #include <gmp.h>
+#include <string.h>
+#include <stdlib.h>
 
 struct d0_bignum_s
 {
@@ -31,26 +38,52 @@ static d0_bignum_t temp;
 
 #include <time.h>
 #include <stdio.h>
+
 void d0_bignum_INITIALIZE(void)
 {
 	FILE *f;
+	unsigned char buf[256];
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
 	gmp_randseed_ui(RANDSTATE, time(NULL));
+	* (time_t *) (&buf[0]) = time(0); // if everything else fails, we use the current time + uninitialized data
+#ifdef WIN32
+	{
+		HCRYPTPROV hCryptProv;
+		if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+		{
+			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+			CryptReleaseContext(hCryptProv, 0);
+		}
+		else
+		{
+			if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
+			{
+				if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+					fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				CryptReleaseContext(hCryptProv, 0);
+			}
+			fprintf(stderr, "WARNING: could not initialize random number generator (CryptAcquireContext failed)\n");
+		}
+	}
+#else
 	f = fopen("/dev/urandom", "rb");
 	if(!f)
 		f = fopen("/dev/random", "rb");
 	if(f)
 	{
-		unsigned char buf[256];
 		setbuf(f, NULL);
-		if(fread(buf, sizeof(buf), 1, f) == 1)
-		{
-			mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
-			gmp_randseed(RANDSTATE, temp.z);
-		}
+		if(fread(buf, sizeof(buf), 1, f) != 1)
+			fprintf(stderr, "WARNING: could not initialize random number generator (read from random device failed)\n");
 		fclose(f);
 	}
+	else
+		fprintf(stderr, "WARNING: could not initialize random number generator (no random device found)\n");
+#endif
+
+	mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
+	gmp_randseed(RANDSTATE, temp.z);
 }
 
 void d0_bignum_SHUTDOWN(void)
@@ -93,6 +126,54 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	{
 		mpz_set_ui(bignum->z, 0);
 	}
+	return bignum;
+}
+
+ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t bufsize)
+{
+	size_t count;
+	count = (mpz_sizeinbase(bignum->z, 2) + 7) / 8;
+	if(count > bufsize)
+		return -1;
+	if(bufsize > count)
+	{
+		// pad from left (big endian numbers!)
+		memset(buf, 0, bufsize - count);
+		buf += bufsize - count;
+	}
+	bufsize = count;
+	mpz_export(buf, &bufsize, 1, 1, 0, 0, bignum->z);
+	if(bufsize > count)
+	{
+		// REALLY BAD
+		// mpz_sizeinbase lied to us
+		// buffer overflow
+		// there is no sane way whatsoever to handle this
+		abort();
+	}
+	if(bufsize < count)
+	{
+		// BAD
+		// mpz_sizeinbase lied to us
+		// move the number
+		if(bufsize == 0)
+		{
+			memset(buf, 0, count);
+		}
+		else
+		{
+			memmove(buf + count - bufsize, buf, bufsize);
+			memset(buf, 0, count - bufsize);
+		}
+	}
+	return bufsize;
+}
+
+d0_bignum_t *d0_bignum_import_unsigned(d0_bignum_t *bignum, const void *buf, size_t bufsize)
+{
+	size_t count;
+	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
+	mpz_import(bignum->z, bufsize, 1, 1, 0, 0, buf);
 	return bignum;
 }
 

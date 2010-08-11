@@ -35,7 +35,9 @@ void bench(double *b)
 	lastclock = b;
 }
 
+#ifndef WIN32
 #include <sys/signal.h>
+#endif
 volatile BOOL quit = 0;
 void mysignal(int signo)
 {
@@ -43,7 +45,17 @@ void mysignal(int signo)
 	quit = 1;
 }
 
-#include <err.h>
+#include <stdarg.h>
+#include <stdlib.h>
+static void errx(int status, const char *format, ...)
+{
+	va_list ap;
+	va_start(ap, format);
+	vfprintf(stderr, format, ap);
+	fputs("\n", stderr);
+	exit(status);
+}
+
 int main(int argc, char **argv)
 {
 	char buf[65536]; size_t bufsize;
@@ -57,6 +69,10 @@ int main(int argc, char **argv)
 	printf("keygen RSA...\n");
 	if(!d0_blind_id_generate_private_key(ctx_self, 1024))
 		errx(1, "keygen fail");
+	buf2size = sizeof(buf2) - 1;
+	if(!d0_blind_id_fingerprint64_public_key(ctx_self, buf2, &buf2size))
+		errx(2, "fp64 fail");
+	printf("key has fingerprint %s\n", buf2);
 	bufsize = sizeof(buf); if(!d0_blind_id_write_public_key(ctx_self, buf, &bufsize))
 		errx(2, "writepub fail");
 	if(!d0_blind_id_read_public_key(ctx_other, buf, bufsize))
@@ -72,7 +88,9 @@ int main(int argc, char **argv)
 		errx(3, "readpub fail");
 	*/
 
+#ifndef WIN32
 	signal(SIGINT, mysignal);
+#endif
 
 	int n = 0;
 	double bench_gen = 0, bench_fp = 0, bench_stop = 0;
@@ -115,8 +133,10 @@ int main(int argc, char **argv)
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, 1, "hello world", 11, buf, &bufsize))
 			errx(9, "start fail");
 		bench(&bench_chall);
-		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, NULL))
+		buf2size = sizeof(buf2); if(!d0_blind_id_authenticate_with_private_id_challenge(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, &status))
 			errx(10, "challenge fail");
+		if(!status)
+			errx(14, "signature prefail");
 		bench(&bench_resp);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_response(ctx_other, buf2, buf2size, buf, &bufsize))
 			errx(11, "response fail");
@@ -128,10 +148,10 @@ int main(int argc, char **argv)
 		if(!status)
 			errx(14, "signature fail");
 		bench(&bench_dhkey1);
-		bufsize = sizeof(buf); if(!d0_blind_id_sessionkey_public_id(ctx_self, buf, &bufsize))
+		bufsize = 20; if(!d0_blind_id_sessionkey_public_id(ctx_self, buf, &bufsize))
 			errx(15, "dhkey1 fail");
 		bench(&bench_dhkey2);
-		buf2size = sizeof(buf2); if(!d0_blind_id_sessionkey_public_id(ctx_other, buf2, &buf2size))
+		buf2size = 20; if(!d0_blind_id_sessionkey_public_id(ctx_other, buf2, &buf2size))
 			errx(16, "dhkey2 fail");
 		bench(&bench_stop);
 		if(bufsize != buf2size || memcmp(buf, buf2, bufsize))

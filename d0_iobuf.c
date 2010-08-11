@@ -94,14 +94,13 @@ BOOL d0_iobuf_write_packet(d0_iobuf_t *buf, const void *s, size_t n)
 	size_t nn = n;
 	while(nn)
 	{
-		c = nn & 255;
-		nn >>= 8;
+		c = nn & 0x7F;
+		nn >>= 7;
+		if(nn)
+			c |= 0x80;
 		if(d0_iobuf_write_raw(buf, &c, 1) != 1)
 			return 0;
 	}
-	c = 0;
-	if(d0_iobuf_write_raw(buf, &c, 1) != 1)
-		return 0;
 	if(d0_iobuf_write_raw(buf, s, n) != n)
 		return 0;
 	return 1;
@@ -116,10 +115,10 @@ BOOL d0_iobuf_read_packet(d0_iobuf_t *buf, void *s, size_t *np)
 	{
 		if(d0_iobuf_read_raw(buf, &c, 1) != 1)
 			return 0;
-		n |= nn * c;
-		nn <<= 8;
+		n |= nn * (c & 0x7F);
+		nn <<= 7;
 	}
-	while(c);
+	while(c & 0x80);
 	if(n > *np)
 		return 0;
 	if(d0_iobuf_read_raw(buf, s, n) != n)
