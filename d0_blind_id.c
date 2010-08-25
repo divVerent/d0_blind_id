@@ -979,6 +979,31 @@ fail:
 	return 0;
 }
 
+WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_generate_missing_signature(d0_blind_id_t *ctx)
+{
+	size_t sz;
+	static unsigned char shabuf[2048];
+
+	REPLACING(schnorr_H_g_to_s_signature);
+	USING(schnorr_g_to_s); USING(rsa_d); USING(rsa_n);
+
+	// we will actually sign SHA(4^s) to prevent a malleability attack!
+	CHECK(d0_bignum_mov(temp2, ctx->schnorr_g_to_s));
+	sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
+	if(sz > sizeof(shabuf))
+		sz = sizeof(shabuf);
+	CHECK(d0_longhash_destructive(temp2, shabuf, sz));
+	CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+
+	// + 7 / 8 is too large, so let's mod it
+	CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
+	CHECK(d0_bignum_mod_pow(ctx->schnorr_H_g_to_s_signature, temp1, ctx->rsa_d, ctx->rsa_n));
+	return 1;
+
+fail:
+	return 0;
+}
+
 WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;

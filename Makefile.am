@@ -12,7 +12,7 @@ lib_LTLIBRARIES = libd0_blind_id.la
 
 libd0_blind_id_la_SOURCES = d0_bignum-gmp.c d0_blind_id.c d0.c d0_iobuf.c sha2.c \
                             d0_bignum-gmp.h d0_blind_id.h d0.h d0_iobuf.h sha2.h
-libd0_blind_id_la_LDFLAGS = -versioninfo 2:0:2
+libd0_blind_id_la_LDFLAGS = -versioninfo 3:0:3
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_includedir = $(includedir)/d0_blind_id
 library_include_HEADERS = d0_blind_id.h d0.h
