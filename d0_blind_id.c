@@ -88,9 +88,9 @@ struct d0_blind_id_s
 
 static d0_bignum_t *zero, *one, *four, *temp0, *temp1, *temp2, *temp3, *temp4;
 
-void d0_blind_id_INITIALIZE(void)
+WARN_UNUSED_RESULT BOOL d0_blind_id_INITIALIZE(void)
 {
-	d0_bignum_INITIALIZE();
+	CHECK(d0_bignum_INITIALIZE());
 	CHECK_ASSIGN(zero, d0_bignum_int(zero, 0));
 	CHECK_ASSIGN(one, d0_bignum_int(one, 1));
 	CHECK_ASSIGN(four, d0_bignum_int(four, 4));
@@ -99,8 +99,9 @@ void d0_blind_id_INITIALIZE(void)
 	CHECK_ASSIGN(temp2, d0_bignum_int(temp2, 0));
 	CHECK_ASSIGN(temp3, d0_bignum_int(temp3, 0));
 	CHECK_ASSIGN(temp4, d0_bignum_int(temp4, 0));
+	return 1;
 fail:
-	;
+	return 0;
 }
 
 void d0_blind_id_SHUTDOWN(void)

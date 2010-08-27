@@ -11,7 +11,7 @@ WARN_UNUSED_RESULT d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_
 WARN_UNUSED_RESULT ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t bufsize); // big endian, return value = number of significant bytes (or -1 on error)
 WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_import_unsigned(d0_bignum_t *bignum, const void *buf, size_t bufsize);
 
-void d0_bignum_INITIALIZE(void);
+WARN_UNUSED_RESULT BOOL d0_bignum_INITIALIZE(void);
 void d0_bignum_SHUTDOWN(void);
 
 WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_new(void);

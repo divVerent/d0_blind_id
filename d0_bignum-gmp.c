@@ -39,9 +39,10 @@ static d0_bignum_t temp;
 #include <time.h>
 #include <stdio.h>
 
-void d0_bignum_INITIALIZE(void)
+WARN_UNUSED_RESULT BOOL d0_bignum_INITIALIZE(void)
 {
 	FILE *f;
+	BOOL ret = 1;
 	unsigned char buf[256];
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
@@ -53,18 +54,25 @@ void d0_bignum_INITIALIZE(void)
 		if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
 		{
 			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+			{
 				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				ret = 0;
+			}
+			CryptReleaseContext(hCryptProv, 0);
+		}
+		else if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
+		{
+			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+			{
+				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				ret = 0;
+			}
 			CryptReleaseContext(hCryptProv, 0);
 		}
 		else
 		{
-			if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
-			{
-				if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
-					fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
-				CryptReleaseContext(hCryptProv, 0);
-			}
 			fprintf(stderr, "WARNING: could not initialize random number generator (CryptAcquireContext failed)\n");
+			ret = 0;
 		}
 	}
 #else
@@ -75,15 +83,23 @@ void d0_bignum_INITIALIZE(void)
 	{
 		setbuf(f, NULL);
 		if(fread(buf, sizeof(buf), 1, f) != 1)
+		{
 			fprintf(stderr, "WARNING: could not initialize random number generator (read from random device failed)\n");
+			ret = 0;
+		}
 		fclose(f);
 	}
 	else
+	{
 		fprintf(stderr, "WARNING: could not initialize random number generator (no random device found)\n");
+		ret = 0;
+	}
 #endif
 
 	mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
 	gmp_randseed(RANDSTATE, temp.z);
+
+	return ret;
 }
 
 void d0_bignum_SHUTDOWN(void)
