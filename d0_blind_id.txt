@@ -113,3 +113,31 @@ Low level protocol:
 	  "packet"
 	- a value in double quotes is also defined in terms of this protocol, i.e.
 	  the length is preceded
+
+
+
+NOTE: to generate NON blind IDs, the process is not very straightforward. It
+works like this:
+
+Server shall:
+- load private key
+
+Both shall:
+- perform authentication as usual
+
+Server shall:
+- notice that the status is false
+- call d0_blind_id_authenticate_with_private_id_generate_missing_signature
+- write public ID
+- send that data to client
+
+Client shall:
+- read own private ID
+- get fingerprint
+- read received public ID (leaves the private part alone)
+- verify fingerprint
+- possibly verify ID
+- write own private ID again
+
+This ensures that only the ID the client authenticated with is signed by the
+server
