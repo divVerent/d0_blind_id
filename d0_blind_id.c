@@ -1012,11 +1012,15 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_fingerprint64_public_id(const d0_blind_id_t 
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
 
+	USING(rsa_n);
+	USING(rsa_e);
 	USING(schnorr_g_to_s);
 
 	out = d0_iobuf_open_write(outbuf, *outbuflen);
 	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
 
+	CHECK(d0_iobuf_write_bignum(conv, ctx->rsa_n));
+	CHECK(d0_iobuf_write_bignum(conv, ctx->rsa_e));
 	CHECK(d0_iobuf_write_bignum(conv, ctx->schnorr_g_to_s));
 	CHECK(d0_iobuf_close(conv, &sz));
 	conv = NULL;
