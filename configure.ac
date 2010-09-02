@@ -8,10 +8,10 @@ AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GM
 AM_CONDITIONAL(WITH_OPENSSL, [test x"$with_openssl" != xno])
 
 AS_IF([test x"$with_openssl" != xno],
-	[AC_SEARCH_LIBS(BN_init, ssl, , [
+	[AC_SEARCH_LIBS(BN_init, ssl, ,
 		[AC_SEARCH_LIBS(BN_init, ssl, ,
-			AC_MSG_ERROR([OpenSSL not found, see http://www.openssl.org/, or try --without-openssl])],
-		-lcrypto)])],
+			[AC_MSG_ERROR([OpenSSL not found, see http://www.openssl.org/, or try --without-openssl])])],
+		-lcrypto)],
 	[AC_SEARCH_LIBS(__gmpz_init, gmp, ,
 		[AC_MSG_ERROR([GNU MP not found, see http://gmplib.org/, or try --with-openssl])])])
 
