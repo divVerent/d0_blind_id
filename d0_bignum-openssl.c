@@ -250,7 +250,7 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 		assert(!"I know this code is broken (rounds towards zero), need handle negative correctly");
 	}
 	else
-		BN_nnmod(&q->z, &a->z, &b->z, ctx);
+		BN_nnmod(&m->z, &a->z, &b->z, ctx);
 	if(m)
 		return m;
 	else
