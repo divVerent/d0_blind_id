@@ -10,8 +10,13 @@ lib_LTLIBRARIES = libd0_blind_id.la
 #   - incompatible interface change: c:r:a -> c+1:0:0
 #   - internal change: c:r:a -> c:r+1:a
 
-libd0_blind_id_la_SOURCES = d0_bignum-gmp.c d0_blind_id.c d0.c d0_iobuf.c sha2.c \
-                            d0_bignum-gmp.h d0_blind_id.h d0.h d0_iobuf.h sha2.h
+libd0_blind_id_la_SOURCES = d0_blind_id.c d0.c d0_iobuf.c sha2.c \
+                            d0_blind_id.h d0.h d0_iobuf.h sha2.h
+if WITH_OPENSSL
+libd0_blind_id_la_SOURCES += d0_bignum-openssl.c d0_bignum-openssl.h
+else
+libd0_blind_id_la_SOURCES += d0_bignum-gmp.c d0_bignum-gmp.h
+endif
 libd0_blind_id_la_LDFLAGS = -versioninfo 3:0:3
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_includedir = $(includedir)/d0_blind_id
