@@ -1,2 +1,3 @@
 *.c export-subst
 *.h export-subst
+COPYING export-subst
