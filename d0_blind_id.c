@@ -747,18 +747,8 @@ WARN_UNUSED_RESULT BOOL d0_blind_id_authenticate_with_private_id_start(d0_blind_
 	CHECK_ASSIGN(ctx->t, d0_bignum_rand_range(ctx->t, zero, temp0));
 	// can we SOMEHOW do this with just one mod_pow?
 
-#pragma omp parallel default(shared) reduction(||:failed)
-#pragma omp sections
-	{
-#pragma omp section
-		{
-			MPCHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
-		}
-#pragma omp section
-		{
-			MPCHECK_ASSIGN(ctx->g_to_t, d0_bignum_mod_pow(ctx->g_to_t, four, ctx->t, ctx->schnorr_G));
-		}
-	}
+	MPCHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
+	MPCHECK_ASSIGN(ctx->g_to_t, d0_bignum_mod_pow(ctx->g_to_t, four, ctx->t, ctx->schnorr_G));
 	CHECK(!failed);
 
 	// hash it, hash it, everybody hash it

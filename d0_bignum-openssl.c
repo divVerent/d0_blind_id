@@ -210,7 +210,7 @@ d0_bignum_t *d0_bignum_shl(d0_bignum_t *r, const d0_bignum_t *a, ssize_t n)
 	if(n > 0)
 		BN_lshift(&r->z, &a->z, n);
 	else if(n < 0)
-		BN_rshift(&r->z, &a->z, n);
+		BN_rshift(&r->z, &a->z, -n);
 	else if(r != a)
 		BN_copy(&r->z, &a->z);
 	return r;
