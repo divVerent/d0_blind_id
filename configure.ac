@@ -4,7 +4,7 @@ AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
-AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GMP (beware of the OpenSSL license)]), [with_openssl=$enableval], [with_openssl=no])
+AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GMP (beware of the OpenSSL license)]), [with_openssl=$withval], [with_openssl=no])
 AM_CONDITIONAL(WITH_OPENSSL, [test x"$with_openssl" != xno])
 
 AS_IF([test x"$with_openssl" != xno],
