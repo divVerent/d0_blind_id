@@ -1,0 +1,2 @@
+*.c export-subst
+*.h export-subst
