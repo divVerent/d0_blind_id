@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Format:commit %H$
  */
 
 /* NOTE: this file links against libgmp (http://gmplib.org), which is under the

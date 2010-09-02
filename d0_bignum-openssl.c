@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Format:commit %H$
  */
 
 /* NOTE: this file links against openssl (http://www.openssl.org), which is

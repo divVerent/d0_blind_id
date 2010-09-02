@@ -35,7 +35,7 @@ const char *d0_bsd_license_notice = "\n"
 " * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF\n"
 " * SUCH DAMAGE.\n"
 " *\n"
-" * $Id$\n"
+" * $Format:commit %H$\n"
 " */\n";
 
 #include "d0.h"
