@@ -35,7 +35,7 @@ const char *d0_sha2_c_bsd_license_notice = "\n"
 " * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF\n"
 " * SUCH DAMAGE.\n"
 " *\n"
-" * $Id: sha2.c,v 1.1 2001/11/08 00:01:51 adg Exp adg $\n"
+" * $Original-Id: sha2.c,v 1.1 2001/11/08 00:01:51 adg Exp adg $\n"
 " */\n";
 
 #include <string.h>	/* memcpy()/memset() or bcopy()/bzero() */

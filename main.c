@@ -29,7 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Format:commit %H$, $Id$
+ * $Format:commit %H$
+ * $Id$
  */
 
 #include "d0_blind_id.h"
