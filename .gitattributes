@@ -1,3 +1,3 @@
-*.c export-subst
-*.h export-subst
-COPYING export-subst
+*.c export-subst ident
+*.h export-subst ident
+COPYING export-subst ident
