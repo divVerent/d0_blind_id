@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	ctx_other = d0_blind_id_new();
 
 	printf("keygen RSA...\n");
-	if(!d0_blind_id_generate_private_key(ctx_self, 1024))
+	if(!d0_blind_id_generate_private_key(ctx_self, 256))
 		errx(1, "keygen fail");
 	buf2size = sizeof(buf2) - 1;
 	if(!d0_blind_id_fingerprint64_public_key(ctx_self, buf2, &buf2size))

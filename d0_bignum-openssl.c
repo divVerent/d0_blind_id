@@ -19,6 +19,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "d0_bignum.h"
 
+#include <assert.h>
+#include <string.h>
 #include <openssl/bn.h>
 
 struct d0_bignum_s
@@ -27,14 +29,14 @@ struct d0_bignum_s
 };
 
 static d0_bignum_t temp;
-static BN_CTX ctx;
+static BN_CTX *ctx;
 
 #include <time.h>
 #include <stdio.h>
 
 WARN_UNUSED_RESULT BOOL d0_bignum_INITIALIZE(void)
 {
-	BN_CTX_init(&ctx);
+	ctx = BN_CTX_new();
 	d0_bignum_init(&temp);
 	return 1;
 }
@@ -42,7 +44,8 @@ WARN_UNUSED_RESULT BOOL d0_bignum_INITIALIZE(void)
 void d0_bignum_SHUTDOWN(void)
 {
 	d0_bignum_clear(&temp);
-	BN_CTX_free(&ctx);
+	BN_CTX_free(ctx);
+	ctx = NULL;
 }
 
 BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
@@ -55,7 +58,7 @@ BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 		count = BN_num_bytes(&bignum->z);
 		if(count > sizeof(numbuf) - 1)
 			return 0;
-		BN_bn2bin(numbuf+1, &bignum->z);
+		BN_bn2bin(&bignum->z, numbuf+1);
 	}
 	return d0_iobuf_write_packet(buf, numbuf, count + 1);
 }
@@ -230,7 +233,7 @@ d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum
 d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	BN_mul(&r->z, &a->z, &b->z);
+	BN_mul(&r->z, &a->z, &b->z, ctx);
 	return r;
 }
 
@@ -241,13 +244,13 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 	if(q)
 	{
 		if(m)
-			BN_div(&q->z, &m->z, &a->z, &b->z, &ctx);
+			BN_div(&q->z, &m->z, &a->z, &b->z, ctx);
 		else
-			BN_div(&q->z, NULL, &a->z, &b->z, &ctx);
+			BN_div(&q->z, NULL, &a->z, &b->z, ctx);
 		assert(!"I know this code is broken (rounds towards zero), need handle negative correctly");
 	}
 	else
-		BN_nnmod(&q->z, NULL, &a->z, &b->z, &ctx);
+		BN_nnmod(&q->z, &a->z, &b->z, ctx);
 	if(m)
 		return m;
 	else
@@ -257,33 +260,33 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	BN_mod_add(&r->z, &a->z, &b->z, &m->z, &ctx);
+	BN_mod_add(&r->z, &a->z, &b->z, &m->z, ctx);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	BN_mod_mul(&r->z, &a->z, &b->z, &m->z, &ctx);
+	BN_mod_mul(&r->z, &a->z, &b->z, &m->z, ctx);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	BN_mod_exp(&r->z, &a->z, &b->z, &m->z, &ctx);
+	BN_mod_exp(&r->z, &a->z, &b->z, &m->z, ctx);
 	return r;
 }
 
 BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return !!BN_mod_inverse(&r->z, &a->z, &m->z, &ctx);
+	return !!BN_mod_inverse(&r->z, &a->z, &m->z, ctx);
 }
 
 int d0_bignum_isprime(d0_bignum_t *r, int param)
 {
-	return BN_is_prime(&r->z, param, NULL, &ctx, NULL);
+	return BN_is_prime(&r->z, param, NULL, ctx, NULL);
 }
 
 d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b)
@@ -294,7 +297,7 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 	else if(t)
 		assert(!"Extended gcd not implemented");
 	else
-		BN_gcd(&r->z, &a->z, &b->z, &ctx);
+		BN_gcd(&r->z, &a->z, &b->z, ctx);
 	return r;
 }
 
