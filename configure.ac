@@ -11,7 +11,7 @@ AS_IF([test x"$with_openssl" != xno],
 	[AC_SEARCH_LIBS(BN_init, ssl, , [
 		[AC_SEARCH_LIBS(BN_init, ssl, ,
 			AC_MSG_ERROR([OpenSSL not found, see http://www.openssl.org/, or try --without-openssl])],
-		-lcrypto)])]
+		-lcrypto)])],
 	[AC_SEARCH_LIBS(__gmpz_init, gmp, ,
 		[AC_MSG_ERROR([GNU MP not found, see http://gmplib.org/, or try --with-openssl])])])
 
