@@ -54,7 +54,7 @@ void bench(double *b)
 #ifndef WIN32
 #include <sys/signal.h>
 #endif
-volatile BOOL quit = 0;
+volatile D0_BOOL quit = 0;
 void mysignal(int signo)
 {
 	(void) signo;
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 
 	n = 0;
 	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0, bench_dhkey1 = 0, bench_dhkey2 = 0;
-	BOOL status;
+	D0_BOOL status;
 	while(!quit)
 	{
 		bench(&bench_auth);

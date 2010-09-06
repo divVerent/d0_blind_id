@@ -42,7 +42,7 @@ struct d0_iobuf_s
 	const unsigned char *inbuf;
 	unsigned char *outbuf;
 	size_t inpos, outpos, inbuflen, outbuflen;
-	BOOL ok;
+	D0_BOOL ok;
 };
 
 d0_iobuf_t *d0_iobuf_open_read(const void *buf, size_t len)
@@ -69,9 +69,9 @@ d0_iobuf_t *d0_iobuf_open_write(void *buf, size_t len)
 	return b;
 }
 
-BOOL d0_iobuf_close(d0_iobuf_t *buf, size_t *len)
+D0_BOOL d0_iobuf_close(d0_iobuf_t *buf, size_t *len)
 {
-	BOOL r = buf->ok;
+	D0_BOOL r = buf->ok;
 	if(len)
 		*len = buf->outpos;
 	d0_free(buf);
@@ -104,7 +104,7 @@ size_t d0_iobuf_read_raw(d0_iobuf_t *buf, void *s, size_t n)
 	return nreal;
 }
 
-BOOL d0_iobuf_write_packet(d0_iobuf_t *buf, const void *s, size_t n)
+D0_BOOL d0_iobuf_write_packet(d0_iobuf_t *buf, const void *s, size_t n)
 {
 	unsigned char c;
 	size_t nn = n;
@@ -122,7 +122,7 @@ BOOL d0_iobuf_write_packet(d0_iobuf_t *buf, const void *s, size_t n)
 	return 1;
 }
 
-BOOL d0_iobuf_read_packet(d0_iobuf_t *buf, void *s, size_t *np)
+D0_BOOL d0_iobuf_read_packet(d0_iobuf_t *buf, void *s, size_t *np)
 {
 	unsigned char c;
 	size_t n = 0;
@@ -143,7 +143,7 @@ BOOL d0_iobuf_read_packet(d0_iobuf_t *buf, void *s, size_t *np)
 	return 1;
 }
 
-BOOL d0_iobuf_conv_base64_in(d0_iobuf_t *buf)
+D0_BOOL d0_iobuf_conv_base64_in(d0_iobuf_t *buf)
 {
 	// compand the in-buffer
 	return 0;
@@ -165,7 +165,7 @@ static void base64_3to4(const unsigned char *in, unsigned char *out, int bytes)
 	out[3] = (bytes > 2) ? o3 : '=';
 }
 
-BOOL d0_iobuf_conv_base64_out(d0_iobuf_t *buf)
+D0_BOOL d0_iobuf_conv_base64_out(d0_iobuf_t *buf)
 {
 	size_t blocks, i;
 	// expand the out-buffer

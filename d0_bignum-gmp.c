@@ -62,10 +62,10 @@ static d0_bignum_t temp;
 #include <time.h>
 #include <stdio.h>
 
-WARN_UNUSED_RESULT BOOL d0_bignum_INITIALIZE(void)
+D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
 	FILE *f;
-	BOOL ret = 1;
+	D0_BOOL ret = 1;
 	unsigned char buf[256];
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
@@ -131,7 +131,7 @@ void d0_bignum_SHUTDOWN(void)
 	gmp_randclear(RANDSTATE);
 }
 
-BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
+D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
 	static unsigned char numbuf[65536];
 	size_t count = 0;
@@ -377,7 +377,7 @@ d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bi
 	return r;
 }
 
-BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
+D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
 	return mpz_invert(r->z, a->z, m->z);
