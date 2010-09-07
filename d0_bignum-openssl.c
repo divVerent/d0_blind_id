@@ -49,8 +49,6 @@
 // for stupid OpenSSL versions in Mac OS X
 #ifndef BN_is_negative
 #define BN_is_negative(a) ((a)->neg != 0)
-#endif
-#ifndef BN_set_negative
 #define BN_set_negative(a,n) ((a)->neg = ((n) && !BN_is_zero(a)))
 #endif
 
