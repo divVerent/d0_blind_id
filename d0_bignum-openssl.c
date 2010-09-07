@@ -51,7 +51,7 @@
 #define BN_is_negative(a) ((a)->neg != 0)
 #endif
 #ifndef BN_set_negative
-#define BN_set_negative(a,n) ((a)->neg = ((n) && !BN_is_zero(b)))
+#define BN_set_negative(a,n) ((a)->neg = ((n) && !BN_is_zero(a)))
 #endif
 
 struct d0_bignum_s
