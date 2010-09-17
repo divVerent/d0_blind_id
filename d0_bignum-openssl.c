@@ -293,6 +293,13 @@ d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bi
 	return r;
 }
 
+d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
+{
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	BN_mod_sub(&r->z, &a->z, &b->z, &m->z, ctx);
+	return r;
+}
+
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;

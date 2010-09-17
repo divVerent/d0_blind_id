@@ -141,10 +141,21 @@ int main(int argc, char **argv)
 		errx(8, "readpub2 fail");
 
 	n = 0;
-	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0, bench_dhkey1 = 0, bench_dhkey2 = 0;
+	double bench_auth = 0, bench_chall = 0, bench_resp = 0, bench_verify = 0, bench_dhkey1 = 0, bench_dhkey2 = 0, bench_sign = 0, bench_signverify = 0;
 	D0_BOOL status;
 	while(!quit)
 	{
+		bench(&bench_sign);
+		bufsize = sizeof(buf); if(!d0_blind_id_sign_with_private_id_sign(ctx_other, 1, 1, "hello world", 11, buf, &bufsize))
+			errx(9, "sign fail");
+		bench(&bench_signverify);
+		buf2size = sizeof(buf2); if(!d0_blind_id_sign_with_private_id_verify(ctx_self, 1, 1, buf, bufsize, buf2, &buf2size, &status))
+			errx(9, "signverify fail");
+		bench(&bench_stop);
+		if(buf2size != 11 || memcmp(buf2, "hello world", 11))
+			errx(13, "signhello fail");
+		if(!status)
+			errx(14, "signsignature fail");
 		bench(&bench_auth);
 		bufsize = sizeof(buf); if(!d0_blind_id_authenticate_with_private_id_start(ctx_other, 1, 1, "hello world", 11, buf, &bufsize))
 			errx(9, "start fail");
@@ -174,7 +185,7 @@ int main(int argc, char **argv)
 			errx(17, "dhkey match fail");
 		++n;
 		if(n % 1024 == 0)
-			printf("auth=%f chall=%f resp=%f verify=%f dh1=%f dh2=%f\n", n/bench_auth, n/bench_chall, n/bench_resp, n/bench_verify, n/bench_dhkey1, n/bench_dhkey2);
+			printf("sign=%f signverify=%f auth=%f chall=%f resp=%f verify=%f dh1=%f dh2=%f\n", n/bench_sign, n/bench_signverify, n/bench_auth, n/bench_chall, n/bench_resp, n/bench_verify, n/bench_dhkey1, n/bench_dhkey2);
 	}
 
 	return 0;

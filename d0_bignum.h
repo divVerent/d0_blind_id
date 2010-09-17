@@ -69,6 +69,7 @@ D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b);
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t *a, const d0_bignum_t *b); // only do mod if both are NULL
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
+D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m);
