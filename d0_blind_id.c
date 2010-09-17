@@ -41,7 +41,7 @@
 #include "sha2.h"
 
 // old "positive" protocol, uses one extra mod_inv in verify stages
-#define D0_BLIND_ID_POSITIVE_PROTOCOL
+// #define D0_BLIND_ID_POSITIVE_PROTOCOL
 
 // our SHA is SHA-256
 #define SHA_DIGESTSIZE 32
