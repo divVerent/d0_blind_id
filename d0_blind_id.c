@@ -40,6 +40,9 @@
 #include "d0_bignum.h"
 #include "sha2.h"
 
+// old "positive" protocol, uses one extra mod_inv in verify stages
+#define D0_BLIND_ID_POSITIVE_PROTOCOL
+
 // our SHA is SHA-256
 #define SHA_DIGESTSIZE 32
 const char *sha(const unsigned char *in, size_t len)
@@ -909,7 +912,11 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_response(
 	// i.challenge. r + ctx->schnorr_s * temp3
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
 	CHECK(d0_bignum_mod_mul(temp1, ctx->schnorr_s, temp3, temp0));
-	CHECK(d0_bignum_mod_add(temp2, temp1, ctx->r, temp0));
+#ifdef D0_BLIND_ID_POSITIVE_PROTOCOL
+	CHECK(d0_bignum_mod_add(temp2, ctx->r, temp1, temp0));
+#else
+	CHECK(d0_bignum_mod_sub(temp2, ctx->r, temp1, temp0));
+#endif
 	CHECK(d0_iobuf_write_bignum(out, temp2));
 
 	// Diffie Hellmann recv
@@ -950,9 +957,14 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_verify(d0
 	CHECK(d0_bignum_cmp(temp0, temp1) < 0);
 
 	// verify schnorr ID scheme
+#ifdef D0_BLIND_ID_POSITIVE_PROTOCOL
 	// we need 4^r = 4^temp0 (g^s)^-challenge
 	CHECK(d0_bignum_mod_inv(temp1, ctx->schnorr_g_to_s, ctx->schnorr_G));
 	CHECK(d0_bignum_mod_pow(temp2, temp1, ctx->challenge, ctx->schnorr_G));
+#else
+	// we need 4^r = 4^temp0 (g^s)^challenge
+	CHECK(d0_bignum_mod_pow(temp2, ctx->schnorr_g_to_s, ctx->challenge, ctx->schnorr_G));
+#endif
 	CHECK(d0_bignum_mod_pow(temp1, four, temp0, ctx->schnorr_G));
 	CHECK_ASSIGN(temp3, d0_bignum_mod_mul(temp3, temp1, temp2, ctx->schnorr_G));
 
@@ -1063,7 +1075,11 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign(d0_blind_id_
 
 	// multiply with secret, sub k, modulo order
 	CHECK(d0_bignum_mod_mul(temp1, temp2, ctx->schnorr_s, temp0));
+#ifdef D0_BLIND_ID_POSITIVE_PROTOCOL
+	CHECK(d0_bignum_mod_add(temp2, ctx->r, temp1, temp0));
+#else
 	CHECK(d0_bignum_mod_sub(temp2, ctx->r, temp1, temp0));
+#endif
 	CHECK(d0_iobuf_write_bignum(out, temp2));
 
 	// write the message itself
@@ -1148,7 +1164,12 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify(d0_blind_i
 	// verify schnorr ID scheme
 	// we need g^r = g^x (g^s)^e
 	CHECK(d0_bignum_mod_pow(temp2, four, temp1, ctx->schnorr_G));
+#ifdef D0_BLIND_ID_POSITIVE_PROTOCOL
+	CHECK(d0_bignum_mod_inv(temp3, ctx->schnorr_g_to_s, ctx->schnorr_G));
+	CHECK(d0_bignum_mod_pow(temp1, temp3, temp0, ctx->schnorr_G));
+#else
 	CHECK(d0_bignum_mod_pow(temp1, ctx->schnorr_g_to_s, temp0, ctx->schnorr_G));
+#endif
 	CHECK_ASSIGN(temp3, d0_bignum_mod_mul(temp3, temp1, temp2, ctx->schnorr_G)); // temp3 now is g^r
 
 	// hash it, hash it, everybody hash it
