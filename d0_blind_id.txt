@@ -80,7 +80,7 @@ Authentication protocol:
 	"verify":
 	- Server receives y and g^t
 	- Server calculates z = g^y S^-c
-	- Server calculates x' = h("z || m || z")
+	- Server calculates x' = h("z || g^t || m || z || g^t")
 	- Server verifies x == x'
 	- Server calculates K = (g^t)^T
 
@@ -92,6 +92,20 @@ Diffie Hellmann key exchange at the same time. The DH key exchange generates
 the same values on both sides only if the Schnorr identification scheme
 succeeds. If the protocol succeeds, the authenticity of m has been verified
 too.
+
+Signature protocol:
+	Client provides a message m that is to be signed as part of the protocol
+	"start":
+	- Client sends S, H if this is the first round of the protocol
+	- Client generates r in [0, |G|[ at random
+	- Client sends c = h("m || g^r")
+	- Client sends y = r + s * c
+	- Client sends m in plain
+	"verify":
+	- Server receives c, y, and m
+	- Server calculates z = g^y S^-c
+	- Server calculates c' = h("m || z")
+	- Server verifies c == c'
 
 
 
