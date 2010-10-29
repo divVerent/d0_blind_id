@@ -765,12 +765,19 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_start(d0_
 	// start schnorr ID scheme
 	// generate random number r; x = g^r; send hash of x, remember r, forget x
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
+#ifdef RNG_XKCD
+	CHECK_ASSIGN(ctx->r, d0_bignum_int(ctx->r, 4)); // decided by fair dice roll
+#else
 	CHECK_ASSIGN(ctx->r, d0_bignum_rand_range(ctx->r, zero, temp0));
-	//CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
+#endif
 
 	// initialize Signed Diffie Hellmann
 	// we already have the group order in temp1
+#ifdef RNG_XKCD
+	CHECK_ASSIGN(ctx->t, d0_bignum_int(ctx->t, 4)); // decided by fair dice roll
+#else
 	CHECK_ASSIGN(ctx->t, d0_bignum_rand_range(ctx->t, zero, temp0));
+#endif
 	// can we SOMEHOW do this with just one mod_pow?
 
 	CHECK(d0_bignum_mod_pow(temp0, four, ctx->r, ctx->schnorr_G));
@@ -869,12 +876,20 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_challenge
 	CHECK(d0_iobuf_read_packet(in, ctx->msg, &ctx->msglen));
 
 	// send challenge
+#ifdef RNG_XKCD
+	CHECK_ASSIGN(ctx->challenge, d0_bignum_int(ctx->challenge, 4)); // decided by fair dice roll
+#else
 	CHECK_ASSIGN(ctx->challenge, d0_bignum_rand_bit_atmost(ctx->challenge, SCHNORR_BITS));
+#endif
 	CHECK(d0_iobuf_write_bignum(out, ctx->challenge));
 
 	// Diffie Hellmann send
 	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
+#ifdef RNG_XKCD
+	CHECK_ASSIGN(ctx->t, d0_bignum_int(ctx->t, 4)); // decided by fair dice roll
+#else
 	CHECK_ASSIGN(ctx->t, d0_bignum_rand_range(ctx->t, zero, temp0));
+#endif
 	CHECK(d0_bignum_mod_pow(temp0, four, ctx->t, ctx->schnorr_G));
 	CHECK(d0_iobuf_write_bignum(out, temp0));
 
