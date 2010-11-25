@@ -1045,7 +1045,7 @@ fail:
 	return 0;
 }
 
-D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL send_modulus, const char *message, size_t msglen, char *outbuf, size_t *outbuflen)
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL send_modulus, D0_BOOL with_msg, const char *message, size_t msglen, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
 	static unsigned char convbuf[1024];
@@ -1098,7 +1098,8 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign(d0_blind_id_
 	CHECK(d0_iobuf_write_bignum(out, temp2));
 
 	// write the message itself
-	CHECK(d0_iobuf_write_packet(out, message, msglen));
+	if(with_msg)
+		CHECK(d0_iobuf_write_packet(out, message, msglen));
 
 	return d0_iobuf_close(out, outbuflen);
 
@@ -1106,8 +1107,16 @@ fail:
 	d0_iobuf_close(out, outbuflen);
 	return 0;
 }
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL send_modulus, const char *message, size_t msglen, char *outbuf, size_t *outbuflen)
+{
+	return d0_blind_id_sign_with_private_id_sign_internal(ctx, is_first, send_modulus, 1, message, msglen, outbuf, outbuflen);
+}
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_detached(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL send_modulus, const char *message, size_t msglen, char *outbuf, size_t *outbuflen)
+{
+	return d0_blind_id_sign_with_private_id_sign_internal(ctx, is_first, send_modulus, 0, message, msglen, outbuf, outbuflen);
+}
 
-D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL recv_modulus, const char *inbuf, size_t inbuflen, char *msg, size_t *msglen, D0_BOOL *status)
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL recv_modulus, D0_BOOL with_msg, const char *inbuf, size_t inbuflen, char *msg, size_t *msglen, D0_BOOL *status)
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *conv = NULL;
@@ -1172,7 +1181,8 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify(d0_blind_i
 	CHECK(d0_dl_get_order(temp4, ctx->schnorr_G));
 	CHECK(d0_iobuf_read_bignum(in, temp0)); // e == H(m || g^r)
 	CHECK(d0_iobuf_read_bignum(in, temp1)); // x == (r - s*e) mod |G|
-	CHECK(d0_iobuf_read_packet(in, msg, msglen));
+	if(with_msg)
+		CHECK(d0_iobuf_read_packet(in, msg, msglen));
 
 	// VERIFY: g^x * (g^s)^-e = g^(x - s*e) = g^r
 
@@ -1208,6 +1218,14 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify(d0_blind_i
 fail:
 	d0_iobuf_close(in, NULL);
 	return 0;
+}
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL recv_modulus, const char *inbuf, size_t inbuflen, char *msg, size_t *msglen, D0_BOOL *status)
+{
+	return d0_blind_id_sign_with_private_id_verify_internal(ctx, is_first, recv_modulus, 1, inbuf, inbuflen, msg, msglen, status);
+}
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_detached(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL recv_modulus, const char *inbuf, size_t inbuflen, const char *msg, size_t msglen, D0_BOOL *status)
+{
+	return d0_blind_id_sign_with_private_id_verify_internal(ctx, is_first, recv_modulus, 0, inbuf, inbuflen, (char *) msg, &msglen, status);
 }
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
