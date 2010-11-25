@@ -18,7 +18,7 @@ libd0_blind_id_la_SOURCES += d0_bignum-openssl.c
 else
 libd0_blind_id_la_SOURCES += d0_bignum-gmp.c
 endif
-libd0_blind_id_la_LDFLAGS = -versioninfo 3:0:3
+libd0_blind_id_la_LDFLAGS = -versioninfo 4:0:4
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_includedir = $(includedir)/d0_blind_id
 library_include_HEADERS = d0_blind_id.h d0.h
