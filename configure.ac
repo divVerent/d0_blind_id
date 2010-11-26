@@ -1,4 +1,4 @@
-AC_INIT([d0_blind_id], [0.1], [divVerent@alientrap.org])
+AC_INIT([d0_blind_id], [0.2], [divVerent@xonotic.org])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
