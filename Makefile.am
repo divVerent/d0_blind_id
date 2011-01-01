@@ -34,3 +34,5 @@ libd0_rijndael_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-p
 library_include_HEADERS += d0_rijndael.h
 pkgconfig_HEADERS += d0_rijndael.pc
 endif
+
+EXTRA_DIST = d0_blind_id.txt autogen.sh
