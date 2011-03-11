@@ -74,12 +74,12 @@ Authentication protocol:
 	"response":
 	- Client receives c and g^T
 	- Client verifies that the received values are in the allowed ranges
-	- Client sends y = r + s * c mod |G|
+	- Client sends y = r - s * c mod |G|
 	- Client sends g^t
 	- Client calculates K = (g^T)^t
 	"verify":
 	- Server receives y and g^t
-	- Server calculates z = g^y S^-c
+	- Server calculates z = g^y S^c
 	- Server calculates x' = h("z || g^t || m || z || g^t")
 	- Server verifies x == x'
 	- Server calculates K = (g^t)^T
@@ -99,11 +99,11 @@ Signature protocol:
 	- Client sends S, H if this is the first round of the protocol
 	- Client generates r in [0, |G|[ at random
 	- Client sends c = h("m || g^r")
-	- Client sends y = r + s * c
+	- Client sends y = r - s * c
 	- Client sends m in plain
 	"verify":
 	- Server receives c, y, and m
-	- Server calculates z = g^y S^-c
+	- Server calculates z = g^y S^c
 	- Server calculates c' = h("m || z")
 	- Server verifies c == c'
 
