@@ -404,6 +404,8 @@ D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_
 int d0_bignum_isprime(d0_bignum_t *r, int param)
 {
 	int ret = 0;
+	if(param < 1)
+		param = 1;
 	mp_prime_is_prime(&r->z, param, &ret);
 	return ret;
 }
