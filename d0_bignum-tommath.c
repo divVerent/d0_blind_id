@@ -47,70 +47,64 @@
 
 #include "d0_bignum.h"
 
-#include <gmp.h>
+#include <tommath.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 struct d0_bignum_s
 {
-	mpz_t z;
+	mp_int z;
 };
 
-static gmp_randstate_t RANDSTATE;
 static d0_bignum_t temp;
 
-#include <time.h>
 #include <stdio.h>
+
+#ifdef WIN32
+HCRYPTPROV hCryptProv;
+#else
+static FILE *randf;
+#endif
+
+void rand_bytes(unsigned char *buf, size_t n)
+{
+#ifdef WIN32
+	CryptGenRandom(hCryptProv, n, (PBYTE) buf);
+#else
+	if(!randf)
+		return;
+	fread(buf, 1, n, randf);
+#endif
+}
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
-	FILE *f;
 	D0_BOOL ret = 1;
 	unsigned char buf[256];
 	d0_bignum_init(&temp);
-	gmp_randinit_mt(RANDSTATE);
-	gmp_randseed_ui(RANDSTATE, time(NULL));
-	* (time_t *) (&buf[0]) = time(0); // if everything else fails, we use the current time + uninitialized data
 #ifdef WIN32
 	{
-		HCRYPTPROV hCryptProv;
 		if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
 		{
-			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
-			{
-				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
-				ret = 0;
-			}
-			CryptReleaseContext(hCryptProv, 0);
 		}
 		else if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
 		{
-			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
-			{
-				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
-				ret = 0;
-			}
-			CryptReleaseContext(hCryptProv, 0);
 		}
 		else
 		{
 			fprintf(stderr, "WARNING: could not initialize random number generator (CryptAcquireContext failed)\n");
 			ret = 0;
+			hCryptProv = NULL;
 		}
 	}
 #else
-	f = fopen("/dev/urandom", "rb");
-	if(!f)
-		f = fopen("/dev/random", "rb");
-	if(f)
+	randf = fopen("/dev/urandom", "rb");
+	if(!randf)
+		randf = fopen("/dev/random", "rb");
+	if(randf)
 	{
-		setbuf(f, NULL);
-		if(fread(buf, sizeof(buf), 1, f) != 1)
-		{
-			fprintf(stderr, "WARNING: could not initialize random number generator (read from random device failed)\n");
-			ret = 0;
-		}
-		fclose(f);
+		setbuf(randf, NULL);
 	}
 	else
 	{
@@ -119,29 +113,32 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 	}
 #endif
 
-	mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
-	gmp_randseed(RANDSTATE, temp.z);
-
 	return ret;
 }
 
 void d0_bignum_SHUTDOWN(void)
 {
 	d0_bignum_clear(&temp);
-	gmp_randclear(RANDSTATE);
+#ifdef WIN32
+	if(hCryptProv)
+	{
+		CryptReleaseContext(hCryptProv, 0);
+		hCryptProv = NULL;
+	}
+#endif
 }
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
 	static unsigned char numbuf[65536];
 	size_t count = 0;
-	numbuf[0] = mpz_sgn(bignum->z) & 3;
+	numbuf[0] = (mp_iszero(&bignum->z) ? 0 : (bignum->z.sign == MP_ZPOS) ? 1 : 3);
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
-		count = (mpz_sizeinbase(bignum->z, 2) + 7) / 8;
+		count = mp_unsigned_bin_size(&bignum->z);
 		if(count > sizeof(numbuf) - 1)
 			return 0;
-		mpz_export(numbuf+1, &count, 1, 1, 0, 0, bignum->z);
+		mp_to_unsigned_bin(&bignum->z, numbuf+1);
 	}
 	return d0_iobuf_write_packet(buf, numbuf, count + 1);
 }
@@ -157,21 +154,21 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
 	if(numbuf[0] & 3) // nonzero
 	{
-		mpz_import(bignum->z, count-1, 1, 1, 0, 0, numbuf+1);
+		mp_read_unsigned_bin(&bignum->z, numbuf+1, count-1);
 		if(numbuf[0] & 2) // negative
-			mpz_neg(bignum->z, bignum->z);
+			bignum->z.sign = MP_NEG;
 	}
 	else // zero
 	{
-		mpz_set_ui(bignum->z, 0);
+		mp_zero(&bignum->z);
 	}
 	return bignum;
 }
 
 ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t bufsize)
 {
-	size_t count;
-	count = (mpz_sizeinbase(bignum->z, 2) + 7) / 8;
+	unsigned long count;
+	count = mp_unsigned_bin_size(&bignum->z);
 	if(count > bufsize)
 		return -1;
 	if(bufsize > count)
@@ -180,8 +177,7 @@ ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t b
 		memset(buf, 0, bufsize - count);
 		buf += bufsize - count;
 	}
-	bufsize = count;
-	mpz_export(buf, &bufsize, 1, 1, 0, 0, bignum->z);
+	mp_to_unsigned_bin_n(&bignum->z, buf, &count);
 	if(bufsize > count)
 	{
 		// REALLY BAD
@@ -212,70 +208,90 @@ d0_bignum_t *d0_bignum_import_unsigned(d0_bignum_t *bignum, const void *buf, siz
 {
 	size_t count;
 	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
-	mpz_import(bignum->z, bufsize, 1, 1, 0, 0, buf);
+	mp_read_unsigned_bin(&bignum->z, buf, bufsize);
 	return bignum;
 }
 
 d0_bignum_t *d0_bignum_new(void)
 {
 	d0_bignum_t *b = d0_malloc(sizeof(d0_bignum_t));
-	mpz_init(b->z);
+	mp_init(&b->z);
 	return b;
 }
 
 void d0_bignum_free(d0_bignum_t *a)
 {
-	mpz_clear(a->z);
+	mp_clear(&a->z);
 	d0_free(a);
 }
 
 void d0_bignum_init(d0_bignum_t *b)
 {
-	mpz_init(b->z);
+	mp_init(&b->z);
 }
 
 void d0_bignum_clear(d0_bignum_t *a)
 {
-	mpz_clear(a->z);
+	mp_clear(&a->z);
 }
 
 size_t d0_bignum_size(const d0_bignum_t *r)
 {
-	return mpz_sizeinbase(r->z, 2);
+	return mp_count_bits(&r->z);
 }
 
 int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 {
-	return mpz_cmp(a->z, b->z);
+	return mp_cmp(&a->z, &b->z);
+}
+
+static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t *limit)
+{
+	size_t n = d0_bignum_size(limit);
+	size_t b = (n + 7) / 8;
+	unsigned char mask = "\xFF\x7F\x3F\x1F\x0F\x07\x03\x01"[8*b - n];
+	unsigned char numbuf[65536];
+	assert(b <= sizeof(numbuf));
+	for(;;)
+	{
+		rand_bytes(&numbuf, b);
+		numbuf[0] &= mask;
+		r = d0_bignum_import_unsigned(r, numbuf, b);
+		if(d0_bignum_cmp(r, limit) < 0)
+			return r;
+	}
 }
 
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
-	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_sub(temp.z, max->z, min->z);
-	mpz_urandomm(r->z, RANDSTATE, temp.z);
-	mpz_add(r->z, r->z, min->z);
+	mp_sub(&max->z, &min->z, &temp.z);
+	r = d0_bignum_rand_0_to_limit(r, &temp);
+	mp_add(&r->z, &min->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_atmost(d0_bignum_t *r, size_t n)
 {
-	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_urandomb(r->z, RANDSTATE, n);
+	d0_bignum_one(&temp);
+	d0_bignum_shl(&temp, &temp, n);
+	r = d0_bignum_rand_0_to_limit(r, &temp);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_exact(d0_bignum_t *r, size_t n)
 {
-	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_urandomb(r->z, RANDSTATE, n-1);
-	mpz_setbit(r->z, n-1);
+	d0_bignum_one(&temp);
+	d0_bignum_shl(&temp, &temp, n-1);
+	r = d0_bignum_rand_0_to_limit(r, &temp);
+	d0_bignum_add(r, r, &temp);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_zero(d0_bignum_t *r)
 {
-	return d0_bignum_int(r, 0);
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	mp_zero(&r->z);
+	return r;
 }
 
 d0_bignum_t *d0_bignum_one(d0_bignum_t *r)
@@ -286,7 +302,7 @@ d0_bignum_t *d0_bignum_one(d0_bignum_t *r)
 d0_bignum_t *d0_bignum_int(d0_bignum_t *r, int n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_set_si(r->z, n);
+	mp_set_int(&r->z, n);
 	return r;
 }
 
@@ -295,47 +311,45 @@ d0_bignum_t *d0_bignum_mov(d0_bignum_t *r, const d0_bignum_t *a)
 	if(r == a)
 		return r; // trivial
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_set(r->z, a->z);
+	mp_copy(&r->z, &a->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_neg(d0_bignum_t *r, const d0_bignum_t *a)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_neg(r->z, a->z);
+	mp_neg(&a->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_shl(d0_bignum_t *r, const d0_bignum_t *a, ssize_t n)
 {
-	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	r = d0_bignum_mov(r, a);
 	if(n > 0)
-		mpz_mul_2exp(r->z, a->z, n);
+		mp_mul_2d(&r->z,  n, &r->z);
 	else if(n < 0)
-		mpz_fdiv_q_2exp(r->z, a->z, -n);
-	else
-		mpz_set(r->z, a->z);
+		mp_div_2d(&r->z, -n, &r->z, NULL);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_add(r->z, a->z, b->z);
+	mp_add(&a->z, &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_sub(r->z, a->z, b->z);
+	mp_sub(&a->z, &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_mul(r->z, a->z, b->z);
+	mp_mul(&a->z, &b->z, &r->z);
 	return r;
 }
 
@@ -344,12 +358,9 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 	if(!q && !m)
 		m = d0_bignum_new();
 	if(q)
-		if(m)
-			mpz_fdiv_qr(q->z, m->z, a->z, b->z);
-		else
-			mpz_fdiv_q(q->z, a->z, b->z);
+		mp_div(&a->z, &b->z, &q->z, m ? &m->z : NULL);
 	else
-		mpz_fdiv_r(m->z, a->z, b->z);
+		mp_mod(&a->z, &b->z, &m->z);
 	if(m)
 		return m;
 	else
@@ -358,56 +369,58 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 
 d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
-	r = d0_bignum_add(r, a, b);
-	mpz_fdiv_r(r->z, r->z, m->z);
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	mp_addmod(&a->z, &b->z, &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
-	r = d0_bignum_sub(r, a, b);
-	mpz_fdiv_r(r->z, r->z, m->z);
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	mp_submod(&a->z, &b->z, &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
-	r = d0_bignum_mul(r, a, b);
-	mpz_fdiv_r(r->z, r->z, m->z);
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	mp_mulmod(&a->z, &b->z, &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mpz_powm(r->z, a->z, b->z, m->z);
+	mp_exptmod(&a->z, &b->z, &m->z, &r->z);
 	return r;
 }
 
 D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return mpz_invert(r->z, a->z, m->z);
+	return mp_invmod(&a->z, &m->z, &r->z);
 }
 
 int d0_bignum_isprime(d0_bignum_t *r, int param)
 {
-	return mpz_probab_prime_p(r->z, param);
+	int ret = 0;
+	mp_prime_is_prime(&r->z, param, &ret);
+	return ret;
 }
 
 d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	if(s)
-		mpz_gcdext(r->z, s->z, t ? t->z : NULL, a->z, b->z);
-	else if(t)
-		mpz_gcdext(r->z, t->z, NULL, b->z, a->z);
+	if(s || t)
+		mp_exteuclid(&a->z, &b->z, s ? &s->z : NULL, t ? &t->z : NULL, &r->z);
 	else
-		mpz_gcd(r->z, a->z, b->z);
+		mp_gcd(&a->z, &b->z, &r->z);
 	return r;
 }
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
-	return mpz_get_str(NULL, base, x->z);
+	static char str[65536];
+	mp_toradix_n(&x->z, str, base, sizeof(str));
+	return str;
 }
