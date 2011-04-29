@@ -177,7 +177,8 @@ ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t b
 		memset(buf, 0, bufsize - count);
 		buf += bufsize - count;
 	}
-	mp_to_unsigned_bin_n(&bignum->z, buf, &count);
+	bufsize = count;
+	mp_to_unsigned_bin_n(&bignum->z, buf, &bufsize);
 	if(bufsize > count)
 	{
 		// REALLY BAD
