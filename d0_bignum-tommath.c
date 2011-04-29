@@ -398,7 +398,7 @@ d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bi
 D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return mp_invmod(&a->z, &m->z, &r->z);
+	return mp_invmod(&a->z, &m->z, &r->z) == MP_OKAY;
 }
 
 int d0_bignum_isprime(d0_bignum_t *r, int param)
