@@ -97,8 +97,7 @@ struct d0_blind_id_s
 	size_t msglen; // message length
 };
 
-#define CHECKDEBUG
-
+//#define CHECKDEBUG
 #ifdef CHECKDEBUG
 #define CHECK(x) do { if(!(x)) { fprintf(stderr, "CHECK FAILED (%s:%d): %s\n", __FILE__, __LINE__, #x); goto fail; } } while(0)
 #define CHECK_ASSIGN(var, value) do { d0_bignum_t *val; val = value; if(!val) { fprintf(stderr, "CHECK FAILED (%s:%d): %s\n", __FILE__, __LINE__, #value); goto fail; } var = val; } while(0)
