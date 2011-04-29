@@ -312,7 +312,7 @@ d0_bignum_t *d0_bignum_mov(d0_bignum_t *r, const d0_bignum_t *a)
 	if(r == a)
 		return r; // trivial
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_copy(&r->z, &a->z);
+	mp_copy(&a->z, &r->z);
 	return r;
 }
 
@@ -325,11 +325,13 @@ d0_bignum_t *d0_bignum_neg(d0_bignum_t *r, const d0_bignum_t *a)
 
 d0_bignum_t *d0_bignum_shl(d0_bignum_t *r, const d0_bignum_t *a, ssize_t n)
 {
-	r = d0_bignum_mov(r, a);
+	if(!r) r = d0_bignum_new(); if(!r) return NULL;
 	if(n > 0)
-		mp_mul_2d(&r->z,  n, &r->z);
+		mp_mul_2d(&a->z,  n, &r->z);
 	else if(n < 0)
-		mp_div_2d(&r->z, -n, &r->z, NULL);
+		mp_div_2d(&a->z, -n, &r->z, NULL);
+	else
+		mp_copy(&a->z, &r->z);
 	return r;
 }
 
