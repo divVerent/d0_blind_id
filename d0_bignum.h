@@ -73,7 +73,7 @@ D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bi
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m);
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m);
-D0_WARN_UNUSED_RESULT int d0_bignum_isprime(d0_bignum_t *r, int param);
+D0_WARN_UNUSED_RESULT int d0_bignum_isprime(const d0_bignum_t *r, int param);
 D0_WARN_UNUSED_RESULT d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b);
 
 D0_WARN_UNUSED_RESULT char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base); // allocates!

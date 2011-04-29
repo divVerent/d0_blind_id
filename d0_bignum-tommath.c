@@ -1,5 +1,5 @@
 /*
- * FILE:	d0_bignum-gmp.c
+ * FILE:	d0_bignum-tommath.c
  * AUTHOR:	Rudolf Polzer - divVerent@xonotic.org
  * 
  * Copyright (c) 2010, Rudolf Polzer
@@ -31,13 +31,6 @@
  *
  * $Format:commit %H$
  * $Id$
- */
-
-/* NOTE: this file links against libgmp (http://gmplib.org), which is under the
- * Lesser General Public License 2.1 or later. You may have to abide to its
- * terms too if you use this file.
- * To alternatively link to OpenSSL, provide the option --with-openssl to
- * ./configure.
  */
 
 #ifdef WIN32
@@ -135,10 +128,10 @@ D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 	numbuf[0] = (mp_iszero(&bignum->z) ? 0 : (bignum->z.sign == MP_ZPOS) ? 1 : 3);
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
-		count = mp_unsigned_bin_size(&bignum->z);
+		count = mp_unsigned_bin_size((mp_int *) &bignum->z);
 		if(count > sizeof(numbuf) - 1)
 			return 0;
-		mp_to_unsigned_bin(&bignum->z, numbuf+1);
+		mp_to_unsigned_bin((mp_int *) &bignum->z, numbuf+1);
 	}
 	return d0_iobuf_write_packet(buf, numbuf, count + 1);
 }
@@ -167,8 +160,9 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 
 ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t bufsize)
 {
+	unsigned long bufsize_;
 	unsigned long count;
-	count = mp_unsigned_bin_size(&bignum->z);
+	count = mp_unsigned_bin_size((mp_int *) &bignum->z);
 	if(count > bufsize)
 		return -1;
 	if(bufsize > count)
@@ -177,8 +171,9 @@ ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t b
 		memset(buf, 0, bufsize - count);
 		buf += bufsize - count;
 	}
-	bufsize = count;
-	mp_to_unsigned_bin_n(&bignum->z, buf, &bufsize);
+	bufsize_ = count;
+	mp_to_unsigned_bin_n((mp_int *) &bignum->z, buf, &bufsize_);
+	bufsize = bufsize_;
 	if(bufsize > count)
 	{
 		// REALLY BAD
@@ -238,12 +233,12 @@ void d0_bignum_clear(d0_bignum_t *a)
 
 size_t d0_bignum_size(const d0_bignum_t *r)
 {
-	return mp_count_bits(&r->z);
+	return mp_count_bits((mp_int *) &r->z);
 }
 
 int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 {
-	return mp_cmp(&a->z, &b->z);
+	return mp_cmp((mp_int *) &a->z, (mp_int *) &b->z);
 }
 
 static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t *limit)
@@ -255,7 +250,7 @@ static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t 
 	assert(b <= sizeof(numbuf));
 	for(;;)
 	{
-		rand_bytes(&numbuf, b);
+		rand_bytes(numbuf, b);
 		numbuf[0] &= mask;
 		r = d0_bignum_import_unsigned(r, numbuf, b);
 		if(d0_bignum_cmp(r, limit) < 0)
@@ -265,26 +260,31 @@ static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t 
 
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
-	mp_sub(&max->z, &min->z, &temp.z);
+	mp_sub((mp_int *) &max->z, (mp_int *) &min->z, &temp.z);
 	r = d0_bignum_rand_0_to_limit(r, &temp);
-	mp_add(&r->z, &min->z, &r->z);
+	mp_add((mp_int *) &r->z, (mp_int *) &min->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_atmost(d0_bignum_t *r, size_t n)
 {
-	d0_bignum_one(&temp);
-	d0_bignum_shl(&temp, &temp, n);
+	if(!d0_bignum_one(&temp))
+		return NULL;
+	if(!d0_bignum_shl(&temp, &temp, n))
+		return NULL;
 	r = d0_bignum_rand_0_to_limit(r, &temp);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_exact(d0_bignum_t *r, size_t n)
 {
-	d0_bignum_one(&temp);
-	d0_bignum_shl(&temp, &temp, n-1);
+	if(!d0_bignum_one(&temp))
+		return NULL;
+	if(!d0_bignum_shl(&temp, &temp, n-1))
+		return NULL;
 	r = d0_bignum_rand_0_to_limit(r, &temp);
-	d0_bignum_add(r, r, &temp);
+	if(!d0_bignum_add(r, r, &temp))
+		return NULL;
 	return r;
 }
 
@@ -312,14 +312,14 @@ d0_bignum_t *d0_bignum_mov(d0_bignum_t *r, const d0_bignum_t *a)
 	if(r == a)
 		return r; // trivial
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_copy(&a->z, &r->z);
+	mp_copy((mp_int *) &a->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_neg(d0_bignum_t *r, const d0_bignum_t *a)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_neg(&a->z, &r->z);
+	mp_neg((mp_int *) &a->z, &r->z);
 	return r;
 }
 
@@ -327,32 +327,32 @@ d0_bignum_t *d0_bignum_shl(d0_bignum_t *r, const d0_bignum_t *a, ssize_t n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
 	if(n > 0)
-		mp_mul_2d(&a->z,  n, &r->z);
+		mp_mul_2d((mp_int *) &a->z,  n, &r->z);
 	else if(n < 0)
-		mp_div_2d(&a->z, -n, &r->z, NULL);
+		mp_div_2d((mp_int *) &a->z, -n, &r->z, NULL);
 	else
-		mp_copy(&a->z, &r->z);
+		mp_copy((mp_int *) &a->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_add(&a->z, &b->z, &r->z);
+	mp_add((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_sub(&a->z, &b->z, &r->z);
+	mp_sub((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_mul(&a->z, &b->z, &r->z);
+	mp_mul((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
 	return r;
 }
 
@@ -361,9 +361,9 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 	if(!q && !m)
 		m = d0_bignum_new();
 	if(q)
-		mp_div(&a->z, &b->z, &q->z, m ? &m->z : NULL);
+		mp_div((mp_int *) &a->z, (mp_int *) &b->z, &q->z, m ? &m->z : NULL);
 	else
-		mp_mod(&a->z, &b->z, &m->z);
+		mp_mod((mp_int *) &a->z, (mp_int *) &b->z, &m->z);
 	if(m)
 		return m;
 	else
@@ -373,43 +373,43 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_addmod(&a->z, &b->z, &m->z, &r->z);
+	mp_addmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_submod(&a->z, &b->z, &m->z, &r->z);
+	mp_submod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_mulmod(&a->z, &b->z, &m->z, &r->z);
+	mp_mulmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_exptmod(&a->z, &b->z, &m->z, &r->z);
+	mp_exptmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
 	return r;
 }
 
 D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return mp_invmod(&a->z, &m->z, &r->z) == MP_OKAY;
+	return mp_invmod((mp_int *) &a->z, (mp_int *) &m->z, &r->z) == MP_OKAY;
 }
 
-int d0_bignum_isprime(d0_bignum_t *r, int param)
+int d0_bignum_isprime(const d0_bignum_t *r, int param)
 {
 	int ret = 0;
 	if(param < 1)
 		param = 1;
-	mp_prime_is_prime(&r->z, param, &ret);
+	mp_prime_is_prime((mp_int *) &r->z, param, &ret);
 	return ret;
 }
 
@@ -417,15 +417,15 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
 	if(s || t)
-		mp_exteuclid(&a->z, &b->z, s ? &s->z : NULL, t ? &t->z : NULL, &r->z);
+		mp_exteuclid((mp_int *) &a->z, (mp_int *) &b->z, s ? &s->z : NULL, t ? &t->z : NULL, &r->z);
 	else
-		mp_gcd(&a->z, &b->z, &r->z);
+		mp_gcd((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
 	return r;
 }
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
 	static char str[65536];
-	mp_toradix_n(&x->z, str, base, sizeof(str));
+	mp_toradix_n((mp_int *) &x->z, str, base, sizeof(str));
 	return str;
 }

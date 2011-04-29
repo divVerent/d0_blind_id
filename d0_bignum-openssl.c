@@ -320,7 +320,7 @@ D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_
 	return !!BN_mod_inverse(&r->z, &a->z, &m->z, ctx);
 }
 
-int d0_bignum_isprime(d0_bignum_t *r, int param)
+int d0_bignum_isprime(const d0_bignum_t *r, int param)
 {
 	if(param <= 0)
 		return BN_is_prime_fasttest(&r->z, 1, NULL, ctx, NULL, 1);

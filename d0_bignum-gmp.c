@@ -390,7 +390,7 @@ D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_
 	return mpz_invert(r->z, a->z, m->z);
 }
 
-int d0_bignum_isprime(d0_bignum_t *r, int param)
+int d0_bignum_isprime(const d0_bignum_t *r, int param)
 {
 	return mpz_probab_prime_p(r->z, param);
 }
