@@ -41,8 +41,10 @@ struct d0_iobuf_s
 {
 	const unsigned char *inbuf;
 	unsigned char *outbuf;
+	unsigned char **outbufp;
 	size_t inpos, outpos, inbuflen, outbuflen;
 	D0_BOOL ok;
+	D0_BOOL pdata;
 };
 
 d0_iobuf_t *d0_iobuf_open_read(const void *buf, size_t len)
@@ -50,6 +52,7 @@ d0_iobuf_t *d0_iobuf_open_read(const void *buf, size_t len)
 	d0_iobuf_t *b = d0_malloc(sizeof(d0_iobuf_t));
 	b->inbuf = (const unsigned char *) buf;
 	b->outbuf = NULL;
+	b->outbufp = NULL;
 	b->inpos = b->outpos = 0;
 	b->inbuflen = len;
 	b->outbuflen = 0;
@@ -62,8 +65,22 @@ d0_iobuf_t *d0_iobuf_open_write(void *buf, size_t len)
 	d0_iobuf_t *b = d0_malloc(sizeof(d0_iobuf_t));
 	b->inbuf = (const unsigned char *) buf;
 	b->outbuf = (unsigned char *) buf;
+	b->outbufp = NULL;
 	b->inpos = b->outpos = 0;
-	b->inbuflen = len;
+	b->inbuflen = 0;
+	b->outbuflen = len;
+	b->ok = 1;
+	return b;
+}
+
+d0_iobuf_t *d0_iobuf_open_write_p(void **buf, size_t len)
+{
+	d0_iobuf_t *b = d0_malloc(sizeof(d0_iobuf_t));
+	b->inbuf = (const unsigned char *) *buf;
+	b->outbuf = (unsigned char *) *buf;
+	b->outbufp = (unsigned char **) buf;
+	b->inpos = b->outpos = 0;
+	b->inbuflen = 0;
 	b->outbuflen = len;
 	b->ok = 1;
 	return b;
@@ -81,6 +98,27 @@ D0_BOOL d0_iobuf_close(d0_iobuf_t *buf, size_t *len)
 size_t d0_iobuf_write_raw(d0_iobuf_t *buf, const void *s, size_t n)
 {
 	size_t nreal = n;
+
+	// if packet doesn't fit, expand buffer
+	if(buf->outbufp && nreal > buf->outbuflen - buf->outpos)
+	{
+		size_t newsize = 1;
+		while(nreal + buf->outpos > newsize)
+			newsize <<= 1;
+
+		{
+			char *newbuf = d0_malloc(newsize);
+			if(buf->outbuf)
+			{
+				memcpy(newbuf, buf->outbuf, buf->outbuflen);
+				d0_free(buf->outbuf);
+			}
+			buf->outbuf = newbuf;
+			*buf->outbufp = newbuf;
+			buf->outbuflen = newsize;
+		}
+	}
+
 	if(nreal > buf->outbuflen - buf->outpos)
 	{
 		buf->ok = 0;
@@ -88,6 +126,7 @@ size_t d0_iobuf_write_raw(d0_iobuf_t *buf, const void *s, size_t n)
 	}
 	memcpy(buf->outbuf + buf->outpos, s, nreal);
 	buf->outpos += nreal;
+	buf->inbuflen = buf->outpos;
 	return nreal;
 }
 

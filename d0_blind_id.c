@@ -1052,8 +1052,8 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_blind_id_t *ctx, D0_BOOL is_first, D0_BOOL send_modulus, D0_BOOL with_msg, const char *message, size_t msglen, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[1024];
-	static unsigned char shabuf[1024];
+	unsigned char *convbuf = NULL;
+	static unsigned char shabuf[2048];
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
 
@@ -1083,12 +1083,14 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_
 	CHECK(d0_bignum_mod_pow(temp1, four, ctx->r, ctx->schnorr_G));
 
 	// hash it, hash it, everybody hash it
-	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
+	conv = d0_iobuf_open_write_p((void **) &convbuf, 0);
 	CHECK(d0_iobuf_write_packet(conv, message, msglen));
 	CHECK(d0_iobuf_write_bignum(conv, temp1));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
 	CHECK(d0_longhash_destructive(convbuf, sz, shabuf, (d0_bignum_size(temp0) + 7) / 8));
+	d0_free(convbuf);
+	convbuf = NULL;
 	CHECK(d0_bignum_import_unsigned(temp2, shabuf, (d0_bignum_size(temp0) + 7) / 8));
 	CHECK(d0_iobuf_write_bignum(out, temp2));
 
@@ -1124,7 +1126,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *conv = NULL;
-	static unsigned char convbuf[2048];
+	unsigned char *convbuf = NULL;
 	static unsigned char shabuf[2048];
 	size_t sz;
 
@@ -1202,12 +1204,14 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 	CHECK_ASSIGN(temp3, d0_bignum_mod_mul(temp3, temp1, temp2, ctx->schnorr_G)); // temp3 now is g^r
 
 	// hash it, hash it, everybody hash it
-	conv = d0_iobuf_open_write(convbuf, sizeof(convbuf));
+	conv = d0_iobuf_open_write_p((void **) &convbuf, 0);
 	CHECK(d0_iobuf_write_packet(conv, msg, *msglen));
 	CHECK(d0_iobuf_write_bignum(conv, temp3));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
 	CHECK(d0_longhash_destructive(convbuf, sz, shabuf, (d0_bignum_size(temp4) + 7) / 8));
+	d0_free(convbuf);
+	convbuf = NULL;
 	CHECK(d0_bignum_import_unsigned(temp1, shabuf, (d0_bignum_size(temp4) + 7) / 8));
 
 	// verify signature

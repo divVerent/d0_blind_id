@@ -40,8 +40,9 @@
 
 typedef struct d0_iobuf_s d0_iobuf_t;
 
-D0_WARN_UNUSED_RESULT d0_iobuf_t *d0_iobuf_open_read(const void *buf, size_t len); // note: can read AND write!
+D0_WARN_UNUSED_RESULT d0_iobuf_t *d0_iobuf_open_read(const void *buf, size_t len); // note: can read
 D0_WARN_UNUSED_RESULT d0_iobuf_t *d0_iobuf_open_write(void *buf, size_t len); // note: can read AND write!
+D0_WARN_UNUSED_RESULT d0_iobuf_t *d0_iobuf_open_write_p(void **buf, size_t len); // note: can read AND write!
 D0_WARN_UNUSED_RESULT D0_BOOL d0_iobuf_conv_base64_in(d0_iobuf_t *buf);
 D0_WARN_UNUSED_RESULT D0_BOOL d0_iobuf_conv_base64_out(d0_iobuf_t *buf);
 D0_BOOL d0_iobuf_close(d0_iobuf_t *buf, size_t *len); // don't warn
