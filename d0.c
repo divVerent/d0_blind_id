@@ -45,3 +45,25 @@ const char *d0_bsd_license_notice = "\n"
 
 void *(*d0_malloc)(size_t len) = malloc;
 void (*d0_free)(void *p) = free;
+
+static void *dummy = (void *) 1; // some dummy non-NULL pointer
+static void *dummy_createmutex(void)
+{
+	return NULL;
+}
+static void dummy_destroymutex(void *m)
+{
+}
+static int dummy_lockmutex(void *m)
+{
+	return 0;
+}
+static int dummy_unlockmutex(void *m)
+{
+	return 0;
+}
+
+void *(*d0_createmutex)(void) = dummy_createmutex;
+void (*d0_destroymutex)(void *) = dummy_destroymutex;
+int (*d0_lockmutex)(void *) = dummy_lockmutex;
+int (*d0_unlockmutex)(void *) = dummy_unlockmutex;

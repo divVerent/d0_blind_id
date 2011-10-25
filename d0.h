@@ -44,6 +44,12 @@
 
 extern void *(*d0_malloc)(size_t len);
 extern void (*d0_free)(void *p);
+
+extern void *(*d0_createmutex)(void);
+extern void (*d0_destroymutex)(void *);
+extern int (*d0_lockmutex)(void *); // zero on success
+extern int (*d0_unlockmutex)(void *); // zero on success
+
 extern const char *d0_bsd_license_notice;
 
 #endif
