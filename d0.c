@@ -46,7 +46,7 @@ const char *d0_bsd_license_notice = "\n"
 //#define MUTEX_DEBUG
 
 #ifdef MUTEX_DEBUG
-#define NUM_MUTEXES 2
+#define NUM_MUTEXES 1024
 #include <stdio.h>
 static mutexarray[NUM_MUTEXES];
 static int mutexpos = 0;

@@ -45,6 +45,7 @@
 #include <assert.h>
 #include <string.h>
 #include <openssl/bn.h>
+#include <openssl/crypto.h>
 
 // for stupid OpenSSL versions in Mac OS X
 #ifndef BN_is_negative
@@ -57,8 +58,6 @@ struct d0_bignum_s
 	BIGNUM z;
 };
 
-// FIXME implement http://www.openssl.org/docs/crypto/threads.html
-
 static d0_bignum_t temp;
 static BN_CTX *ctx;
 static void *tempmutex = NULL; // hold this mutex when using ctx or temp
@@ -66,13 +65,113 @@ static void *tempmutex = NULL; // hold this mutex when using ctx or temp
 #include <time.h>
 #include <stdio.h>
 
+static void **locks;
+
+void locking_function(int mode, int l, const char *file, int line)
+{
+	void *m = locks[l];
+	if(mode & CRYPTO_LOCK)
+		d0_lockmutex(m);
+	else
+		d0_unlockmutex(m);
+}
+
+typedef struct CRYPTO_dynlock_value
+{
+	void *m;
+};
+
+struct CRYPTO_dynlock_value *dyn_create_function(const char *file, int line)
+{
+	return (struct CRYPTO_dynlock_value *) d0_createmutex();
+}
+
+void dyn_lock_function(int mode, struct CRYPTO_dynlock_value *l, const char *file, int line)
+{
+	void *m = (void *) l;
+	if(mode & CRYPTO_LOCK)
+		d0_lockmutex(m);
+	else
+		d0_unlockmutex(m);
+}
+
+void dyn_destroy_function(struct CRYPTO_dynlock_value *l, const char *file, int line)
+{
+	void *m = (void *) l;
+	d0_destroymutex(l);
+}
+
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
+	FILE *f;
+	D0_BOOL ret = 1;
+	unsigned char buf[256];
+	int i, n;
+
 	tempmutex = d0_createmutex();
 	d0_lockmutex(tempmutex);
 
+	n = CRYPTO_num_locks();
+	locks = d0_malloc(n * sizeof(*locks));
+	for(i = 0; i < n; ++i)
+		locks[i] = d0_createmutex();
+
+	CRYPTO_set_locking_callback(locking_function);
+	CRYPTO_set_dynlock_create_callback(dyn_create_function);
+	CRYPTO_set_dynlock_lock_callback(dyn_lock_function);
+	CRYPTO_set_dynlock_destroy_callback(dyn_destroy_function);
+
 	ctx = BN_CTX_new();
 	d0_bignum_init(&temp);
+
+#ifdef WIN32
+	{
+		HCRYPTPROV hCryptProv;
+		if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+		{
+			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+			{
+				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				ret = 0;
+			}
+			CryptReleaseContext(hCryptProv, 0);
+		}
+		else if(CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_NEWKEYSET))
+		{
+			if(!CryptGenRandom(hCryptProv, sizeof(buf), (PBYTE) &buf[0]))
+			{
+				fprintf(stderr, "WARNING: could not initialize random number generator (CryptGenRandom failed)\n");
+				ret = 0;
+			}
+			CryptReleaseContext(hCryptProv, 0);
+		}
+		else
+		{
+			fprintf(stderr, "WARNING: could not initialize random number generator (CryptAcquireContext failed)\n");
+			ret = 0;
+		}
+	}
+#else
+	f = fopen("/dev/urandom", "rb");
+	if(!f)
+		f = fopen("/dev/random", "rb");
+	if(f)
+	{
+		setbuf(f, NULL);
+		if(fread(buf, sizeof(buf), 1, f) != 1)
+		{
+			fprintf(stderr, "WARNING: could not initialize random number generator (read from random device failed)\n");
+			ret = 0;
+		}
+		fclose(f);
+	}
+	else
+	{
+		fprintf(stderr, "WARNING: could not initialize random number generator (no random device found)\n");
+		ret = 0;
+	}
+#endif
+	RAND_add(buf, sizeof(buf), sizeof(buf));
 
 	d0_unlockmutex(tempmutex);
 
@@ -82,11 +181,18 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 
 void d0_bignum_SHUTDOWN(void)
 {
+	int i, n;
+
 	d0_lockmutex(tempmutex);
 
 	d0_bignum_clear(&temp);
 	BN_CTX_free(ctx);
 	ctx = NULL;
+
+	n = CRYPTO_num_locks();
+	for(i = 0; i < n; ++i)
+		d0_destroymutex(locks[i]);
+	d0_free(locks);
 
 	d0_unlockmutex(tempmutex);
 	d0_destroymutex(tempmutex);
