@@ -56,8 +56,8 @@ struct d0_bignum_s
 	mpz_t z;
 };
 
-static gmp_randstate_t RANDSTATE;
-static d0_bignum_t temp;
+static gmp_randstate_t RANDSTATE; // FIXME make threadsafe
+static d0_bignum_t temp; // FIXME make threadsafe
 
 #include <time.h>
 #include <stdio.h>
@@ -133,7 +133,7 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536];
+	static unsigned char numbuf[65536]; // FIXME make threadsafe
 	size_t count = 0;
 	numbuf[0] = mpz_sgn(bignum->z) & 3;
 	if((numbuf[0] & 3) != 0) // nonzero
@@ -148,7 +148,7 @@ D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536];
+	static unsigned char numbuf[65536]; // FIXME make threadsafe
 	size_t count = sizeof(numbuf);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
 		return NULL;

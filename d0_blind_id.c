@@ -47,7 +47,7 @@
 #define SHA_DIGESTSIZE 32
 const char *sha(const unsigned char *in, size_t len)
 {
-	static char h[32];
+	char h[32];
 	d0_blind_id_util_sha256(h, (const char *) in, len);
 	return h;
 }
@@ -109,7 +109,8 @@ struct d0_blind_id_s
 #define USING(x) if(!(ctx->x)) return 0
 #define REPLACING(x)
 
-static d0_bignum_t *zero, *one, *four, *temp0, *temp1, *temp2, *temp3, *temp4;
+static d0_bignum_t *zero, *one, *four;
+static d0_bignum_t *temp0, *temp1, *temp2, *temp3, *temp4; // FIXME make these thread safe by putting them in some per-thread object
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_INITIALIZE(void)
 {
@@ -316,7 +317,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_longhash_destructive(unsigned char *convbuf, si
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_longhash_bignum(const d0_bignum_t *in, unsigned char *outbuf, size_t outbuflen)
 {
-	static unsigned char convbuf[1024];
+	unsigned char convbuf[1024];
 	size_t sz;
 
 	CHECK(d0_bignum_export_unsigned(in, convbuf, sizeof(convbuf)) >= 0);
@@ -463,7 +464,7 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_key(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[2048];
+	unsigned char convbuf[2048];
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
 
@@ -553,7 +554,7 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_id_request(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char shabuf[2048];
+	unsigned char shabuf[2048];
 	size_t sz;
 
 	// temps: temp0 rsa_blind_signature_camouflage^challenge, temp1 (4^s)*rsa_blind_signature_camouflage^challenge
@@ -742,7 +743,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_start(d0_
 //   1. get random r, send HASH(4^r)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[1024];
+	unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
 	D0_BOOL failed = 0;
@@ -815,7 +816,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_challenge
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
-	static unsigned char shabuf[2048];
+	unsigned char shabuf[2048];
 	size_t sz;
 
 	// temps: temp0 order, temp0 signature check
@@ -960,7 +961,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_verify(d0
 //      (check using H(g^r) which we know)
 {
 	d0_iobuf_t *in = NULL;
-	static unsigned char convbuf[1024];
+	unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz;
 
@@ -1027,7 +1028,7 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_generate_missing_signature(d0_blind_id_t *ctx)
 {
 	size_t sz;
-	static unsigned char shabuf[2048];
+	unsigned char shabuf[2048];
 
 	REPLACING(schnorr_H_g_to_s_signature);
 	USING(schnorr_g_to_s); USING(rsa_d); USING(rsa_n);
@@ -1053,7 +1054,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_
 {
 	d0_iobuf_t *out = NULL;
 	unsigned char *convbuf = NULL;
-	static unsigned char shabuf[2048];
+	unsigned char shabuf[2048];
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
 
@@ -1127,7 +1128,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *conv = NULL;
 	unsigned char *convbuf = NULL;
-	static unsigned char shabuf[2048];
+	unsigned char shabuf[2048];
 	size_t sz;
 
 	if(is_first)
@@ -1239,7 +1240,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_detached(d
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_id(const d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static unsigned char convbuf[1024];
+	unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
 
