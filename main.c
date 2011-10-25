@@ -119,9 +119,9 @@ int main(int argc, char **argv)
 		buf2size = sizeof(buf2) - 1; if(!d0_blind_id_fingerprint64_public_id(ctx_other, buf2, &buf2size))
 			errx(4, "fp64 fail");
 		bench(&bench_stop);
+		++n;
 		if(n % 1024 == 0)
 			printf("gen=%f fp=%f\n", n/bench_gen, n/bench_fp);
-		++n;
 	}
 	while(!(quit || argc != 2 || (buf2size > strlen(argv[1]) && !memcmp(buf2, argv[1], strlen(argv[1])))));
 

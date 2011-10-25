@@ -43,7 +43,7 @@ const char *d0_bsd_license_notice = "\n"
 
 #include <stdlib.h>
 
-#define MUTEX_DEBUG
+//#define MUTEX_DEBUG
 
 void *(*d0_malloc)(size_t len) = malloc;
 void (*d0_free)(void *p) = free;
