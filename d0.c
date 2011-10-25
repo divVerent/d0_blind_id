@@ -45,9 +45,6 @@ const char *d0_bsd_license_notice = "\n"
 
 //#define MUTEX_DEBUG
 
-void *(*d0_malloc)(size_t len) = malloc;
-void (*d0_free)(void *p) = free;
-
 #ifdef MUTEX_DEBUG
 #define NUM_MUTEXES 2
 #include <stdio.h>
@@ -100,7 +97,23 @@ static int dummy_unlockmutex(void *m)
 }
 #endif
 
-void *(*d0_createmutex)(void) = dummy_createmutex;
-void (*d0_destroymutex)(void *) = dummy_destroymutex;
-int (*d0_lockmutex)(void *) = dummy_lockmutex;
-int (*d0_unlockmutex)(void *) = dummy_unlockmutex;
+d0_malloc_t *d0_malloc = malloc;
+d0_free_t *d0_free = free;
+d0_createmutex_t *d0_createmutex = dummy_createmutex;
+d0_destroymutex_t *d0_destroymutex = dummy_destroymutex;
+d0_lockmutex_t *d0_lockmutex = dummy_lockmutex;
+d0_unlockmutex_t *d0_unlockmutex = dummy_unlockmutex;
+
+void d0_setmallocfuncs(d0_malloc_t *m, d0_free_t *f)
+{
+	d0_malloc = (m ? m : malloc);
+	d0_free = (f ? f : free);
+}
+
+void d0_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u)
+{
+	d0_createmutex = (c ? c : dummy_createmutex);
+	d0_destroymutex = (d ? d : dummy_destroymutex);
+	d0_lockmutex = (l ? l : dummy_lockmutex);
+	d0_unlockmutex = (u ? u : dummy_unlockmutex);
+}

@@ -42,13 +42,22 @@
 #define D0_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #define D0_BOOL int
 
-extern void *(*d0_malloc)(size_t len);
-extern void (*d0_free)(void *p);
+typedef void *(d0_malloc_t)(size_t len);
+typedef void (d0_free_t)(void *p);
+typedef void *(d0_createmutex_t)(void);
+typedef void (d0_destroymutex_t)(void *);
+typedef int (d0_lockmutex_t)(void *); // zero on success
+typedef int (d0_unlockmutex_t)(void *); // zero on success
 
-extern void *(*d0_createmutex)(void);
-extern void (*d0_destroymutex)(void *);
-extern int (*d0_lockmutex)(void *); // zero on success
-extern int (*d0_unlockmutex)(void *); // zero on success
+extern d0_malloc_t *d0_malloc;
+extern d0_free_t *d0_free;
+extern d0_createmutex_t *d0_createmutex;
+extern d0_destroymutex_t *d0_destroymutex;
+extern d0_lockmutex_t *d0_lockmutex;
+extern d0_unlockmutex_t *d0_unlockmutex;
+
+D0_EXPORT void d0_setmallocfuncs(d0_malloc_t *m, d0_free_t *f);
+D0_EXPORT void d0_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u);
 
 extern const char *d0_bsd_license_notice;
 
