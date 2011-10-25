@@ -56,8 +56,8 @@ extern d0_destroymutex_t *d0_destroymutex;
 extern d0_lockmutex_t *d0_lockmutex;
 extern d0_unlockmutex_t *d0_unlockmutex;
 
-D0_EXPORT void d0_setmallocfuncs(d0_malloc_t *m, d0_free_t *f);
-D0_EXPORT void d0_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u);
+void d0_setmallocfuncs(d0_malloc_t *m, d0_free_t *f);
+void d0_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u);
 
 extern const char *d0_bsd_license_notice;
 

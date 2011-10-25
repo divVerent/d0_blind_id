@@ -82,4 +82,8 @@ D0_EXPORT void d0_blind_id_SHUTDOWN(void);
 
 D0_EXPORT void d0_blind_id_util_sha256(char *out, const char *in, size_t n);
 
+// for exporting
+D0_EXPORT void d0_blind_id_setmallocfuncs(d0_malloc_t *m, d0_free_t *f);
+D0_EXPORT void d0_blind_id_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u);
+
 #endif

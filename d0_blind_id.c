@@ -1417,3 +1417,12 @@ void d0_blind_id_util_sha256(char *out, const char *in, size_t n)
 	SHA256_Update(&context, (const unsigned char *) in, n);
 	return SHA256_Final((unsigned char *) out, &context);
 }
+
+void d0_blind_id_setmallocfuncs(d0_malloc_t *m, d0_free_t *f)
+{
+	d0_setmallocfuncs(m, f);
+}
+void d0_blind_id_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t *l, d0_unlockmutex_t *u)
+{
+	d0_setmutexfuncs(c, d, l, u);
+}
