@@ -123,7 +123,7 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536]; // FIXME make threadsafe
+	static __thread unsigned char numbuf[65536];
 	size_t count = 0;
 	numbuf[0] = (mp_iszero(&bignum->z) ? 0 : (bignum->z.sign == MP_ZPOS) ? 1 : 3);
 	if((numbuf[0] & 3) != 0) // nonzero
@@ -138,7 +138,7 @@ D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536]; // FIXME make threadsafe
+	static __thread unsigned char numbuf[65536];
 	size_t count = sizeof(numbuf);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
 		return NULL;
@@ -425,7 +425,7 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
-	static char str[65536]; // FIXME make threadsafe
+	static __thread char str[65536];
 	mp_toradix_n((mp_int *) &x->z, str, base, sizeof(str));
 	return str;
 }

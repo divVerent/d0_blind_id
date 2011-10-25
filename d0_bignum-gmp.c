@@ -133,7 +133,7 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536]; // FIXME make threadsafe
+	static __thread unsigned char numbuf[65536];
 	size_t count = 0;
 	numbuf[0] = mpz_sgn(bignum->z) & 3;
 	if((numbuf[0] & 3) != 0) // nonzero
@@ -148,7 +148,7 @@ D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static unsigned char numbuf[65536]; // FIXME make threadsafe
+	static __thread unsigned char numbuf[65536];
 	size_t count = sizeof(numbuf);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
 		return NULL;
