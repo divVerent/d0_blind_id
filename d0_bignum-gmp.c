@@ -56,8 +56,9 @@ struct d0_bignum_s
 	mpz_t z;
 };
 
-static gmp_randstate_t RANDSTATE; // FIXME make threadsafe
-static d0_bignum_t temp; // FIXME make threadsafe
+static gmp_randstate_t RANDSTATE;
+static d0_bignum_t temp;
+static void *tempmutex = NULL; // hold this mutex when using RANDSTATE or temp
 
 #include <time.h>
 #include <stdio.h>
@@ -67,6 +68,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 	FILE *f;
 	D0_BOOL ret = 1;
 	unsigned char buf[256];
+
+	tempmutex = d0_createmutex();
+	d0_lockmutex(tempmutex);
+
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
 	gmp_randseed_ui(RANDSTATE, time(NULL));
@@ -122,13 +127,21 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 	mpz_import(temp.z, sizeof(buf), 1, 1, 0, 0, buf);
 	gmp_randseed(RANDSTATE, temp.z);
 
+	d0_unlockmutex(tempmutex);
+
 	return ret;
 }
 
 void d0_bignum_SHUTDOWN(void)
 {
+	d0_lockmutex(tempmutex);
+
 	d0_bignum_clear(&temp);
 	gmp_randclear(RANDSTATE);
+
+	d0_unlockmutex(tempmutex);
+	d0_destroymutex(tempmutex);
+	tempmutex = NULL;
 }
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
@@ -252,8 +265,10 @@ int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	mpz_sub(temp.z, max->z, min->z);
 	mpz_urandomm(r->z, RANDSTATE, temp.z);
+	d0_unlockmutex(tempmutex);
 	mpz_add(r->z, r->z, min->z);
 	return r;
 }
@@ -261,14 +276,18 @@ d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const 
 d0_bignum_t *d0_bignum_rand_bit_atmost(d0_bignum_t *r, size_t n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	mpz_urandomb(r->z, RANDSTATE, n);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_exact(d0_bignum_t *r, size_t n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	mpz_urandomb(r->z, RANDSTATE, n-1);
+	d0_unlockmutex(tempmutex);
 	mpz_setbit(r->z, n-1);
 	return r;
 }

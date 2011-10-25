@@ -57,24 +57,40 @@ struct d0_bignum_s
 	BIGNUM z;
 };
 
-static d0_bignum_t temp; // FIXME make threadsafe
-static BN_CTX *ctx; // FIXME make threadsafe
+// FIXME implement http://www.openssl.org/docs/crypto/threads.html
+
+static d0_bignum_t temp;
+static BN_CTX *ctx;
+static void *tempmutex = NULL; // hold this mutex when using ctx or temp
 
 #include <time.h>
 #include <stdio.h>
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
+	tempmutex = d0_createmutex();
+	d0_lockmutex(tempmutex);
+
 	ctx = BN_CTX_new();
 	d0_bignum_init(&temp);
+
+	d0_unlockmutex(tempmutex);
+
 	return 1;
+	// FIXME initialize the RNG on Windows on UNIX it is done right already
 }
 
 void d0_bignum_SHUTDOWN(void)
 {
+	d0_lockmutex(tempmutex);
+
 	d0_bignum_clear(&temp);
 	BN_CTX_free(ctx);
 	ctx = NULL;
+
+	d0_unlockmutex(tempmutex);
+	d0_destroymutex(tempmutex);
+	tempmutex = NULL;
 }
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
@@ -174,8 +190,10 @@ int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_sub(&temp.z, &max->z, &min->z);
 	BN_rand_range(&r->z, &temp.z);
+	d0_unlockmutex(tempmutex);
 	BN_add(&r->z, &r->z, &min->z);
 	return r;
 }
@@ -262,7 +280,9 @@ d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum
 d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_mul(&r->z, &a->z, &b->z, ctx);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
@@ -270,6 +290,7 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 {
 	if(!q && !m)
 		m = d0_bignum_new();
+	d0_lockmutex(tempmutex);
 	if(q)
 	{
 		if(m)
@@ -280,6 +301,7 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 	}
 	else
 		BN_nnmod(&m->z, &a->z, &b->z, ctx);
+	d0_unlockmutex(tempmutex);
 	if(m)
 		return m;
 	else
@@ -289,43 +311,59 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_mod_add(&r->z, &a->z, &b->z, &m->z, ctx);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_mod_sub(&r->z, &a->z, &b->z, &m->z, ctx);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_mod_mul(&r->z, &a->z, &b->z, &m->z, ctx);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
+	d0_lockmutex(tempmutex);
 	BN_mod_exp(&r->z, &a->z, &b->z, &m->z, ctx);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return !!BN_mod_inverse(&r->z, &a->z, &m->z, ctx);
+	int ret;
+	d0_lockmutex(tempmutex);
+	ret = !!BN_mod_inverse(&r->z, &a->z, &m->z, ctx);
+	d0_unlockmutex(tempmutex);
+	return ret;
 }
 
 int d0_bignum_isprime(const d0_bignum_t *r, int param)
 {
+	int ret;
+	d0_lockmutex(tempmutex);
 	if(param <= 0)
-		return BN_is_prime_fasttest(&r->z, 1, NULL, ctx, NULL, 1);
+		ret = BN_is_prime_fasttest(&r->z, 1, NULL, ctx, NULL, 1);
 	else
-		return BN_is_prime(&r->z, param, NULL, ctx, NULL);
+		ret = BN_is_prime(&r->z, param, NULL, ctx, NULL);
+	d0_unlockmutex(tempmutex);
+	return ret;
 }
 
 d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b)
@@ -336,7 +374,11 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 	else if(t)
 		assert(!"Extended gcd not implemented");
 	else
+	{
+		d0_lockmutex(tempmutex);
 		BN_gcd(&r->z, &a->z, &b->z, ctx);
+		d0_unlockmutex(tempmutex);
+	}
 	return r;
 }
 

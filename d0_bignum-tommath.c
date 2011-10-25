@@ -50,7 +50,8 @@ struct d0_bignum_s
 	mp_int z;
 };
 
-static d0_bignum_t temp; // FIXME make threadsafe
+static d0_bignum_t temp;
+static void *tempmutex = NULL; // hold this mutex when using temp
 
 #include <stdio.h>
 
@@ -75,6 +76,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
 	D0_BOOL ret = 1;
 	unsigned char buf[256];
+
+	tempmutex = d0_createmutex();
+	d0_lockmutex(tempmutex);
+
 	d0_bignum_init(&temp);
 #ifdef WIN32
 	{
@@ -106,11 +111,15 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 	}
 #endif
 
+	d0_unlockmutex(tempmutex);
+
 	return ret;
 }
 
 void d0_bignum_SHUTDOWN(void)
 {
+	d0_lockmutex(tempmutex);
+
 	d0_bignum_clear(&temp);
 #ifdef WIN32
 	if(hCryptProv)
@@ -119,6 +128,10 @@ void d0_bignum_SHUTDOWN(void)
 		hCryptProv = NULL;
 	}
 #endif
+
+	d0_unlockmutex(tempmutex);
+	d0_destroymutex(tempmutex);
+	tempmutex = NULL;
 }
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
@@ -260,31 +273,52 @@ static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t 
 
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
+	d0_lockmutex(tempmutex);
 	mp_sub((mp_int *) &max->z, (mp_int *) &min->z, &temp.z);
 	r = d0_bignum_rand_0_to_limit(r, &temp);
+	d0_unlockmutex(tempmutex);
 	mp_add((mp_int *) &r->z, (mp_int *) &min->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_atmost(d0_bignum_t *r, size_t n)
 {
+	d0_lockmutex(tempmutex);
 	if(!d0_bignum_one(&temp))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	if(!d0_bignum_shl(&temp, &temp, n))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	r = d0_bignum_rand_0_to_limit(r, &temp);
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_rand_bit_exact(d0_bignum_t *r, size_t n)
 {
+	d0_lockmutex(tempmutex);
 	if(!d0_bignum_one(&temp))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	if(!d0_bignum_shl(&temp, &temp, n-1))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	r = d0_bignum_rand_0_to_limit(r, &temp);
 	if(!d0_bignum_add(r, r, &temp))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
+	d0_unlockmutex(tempmutex);
 	return r;
 }
 
