@@ -47,7 +47,7 @@
 #define SHA_DIGESTSIZE 32
 const char *sha(const unsigned char *in, size_t len)
 {
-	char h[32];
+	static __thread char h[32];
 	d0_blind_id_util_sha256(h, (const char *) in, len);
 	return h;
 }
