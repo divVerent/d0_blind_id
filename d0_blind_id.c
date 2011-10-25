@@ -176,13 +176,15 @@ fail:
 	return NULL;
 }
 
+// temps must NOT be locked when calling this
 static D0_BOOL d0_dl_generate_key(size_t size, d0_bignum_t *G)
 {
-	// using: temp0
+	USINGTEMPS(); // using: temp0
 	if(size < 16)
 		size = 16;
 	for(;;)
 	{
+		LOCKTEMPS();
 		CHECK(d0_bignum_rand_bit_exact(temp0, size-1));
 		if(d0_bignum_isprime(temp0, 0) == 0)
 			continue;
@@ -191,16 +193,19 @@ static D0_BOOL d0_dl_generate_key(size_t size, d0_bignum_t *G)
 			continue;
 		if(d0_bignum_isprime(temp0, 10) == 0) // finish the previous test
 			continue;
+		UNLOCKTEMPS();
 		break;
 	}
 	return 1;
 fail:
+	UNLOCKTEMPS();
 	return 0;
 }
 
-static D0_BOOL d0_rsa_generate_key(size_t size, const d0_bignum_t *challenge, d0_bignum_t *d, d0_bignum_t *n)
+// temps must NOT be locked when calling this
+static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 {
-	// uses temp0 to temp4
+	USINGTEMPS(); // uses temp1 to temp4
 	int fail = 0;
 	int gcdfail = 0;
 	int pb = (size + 1)/2;
@@ -209,54 +214,76 @@ static D0_BOOL d0_rsa_generate_key(size_t size, const d0_bignum_t *challenge, d0
 		pb = 8;
 	if(qb < 8)
 		qb = 8;
+
+	// we use ctx->rsa_d for the first result so that we can unlock temps later
         for (;;)
 	{
-		CHECK(d0_bignum_rand_bit_exact(temp0, pb));
-		if(d0_bignum_isprime(temp0, 10) == 0)
+		LOCKTEMPS();
+		CHECK(d0_bignum_rand_bit_exact(ctx->rsa_d, pb));
+		if(d0_bignum_isprime(ctx->rsa_d, 10) == 0)
+		{
+			UNLOCKTEMPS();
 			continue;
-		CHECK(d0_bignum_sub(temp2, temp0, one));
-		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, challenge));
+		}
+		CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one));
+		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
 			break;
 		if(++gcdfail == 3)
 			goto fail;
 		++gcdfail;
 	}
+	UNLOCKTEMPS();
+
 	gcdfail = 0;
         for (;;)
 	{
+		LOCKTEMPS();
 		CHECK(d0_bignum_rand_bit_exact(temp1, qb));
-		if(!d0_bignum_cmp(temp1, temp0))
+		if(!d0_bignum_cmp(temp1, ctx->rsa_d))
 		{
+			UNLOCKTEMPS();
 			if(++fail == 3)
 				goto fail;
+			continue;
 		}
 		fail = 0;
 		if(d0_bignum_isprime(temp1, 10) == 0)
+		{
+			UNLOCKTEMPS();
 			continue;
+		}
 		CHECK(d0_bignum_sub(temp3, temp1, one));
-		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp3, challenge));
+		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp3, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
+		{
+			// we do NOT unlock, as we still need temp1 and temp3
 			break;
+		}
+		UNLOCKTEMPS();
 		if(++gcdfail == 3)
 			goto fail;
 		++gcdfail;
 	}
 
-	// n = temp0*temp1
-	CHECK(d0_bignum_mul(n, temp0, temp1));
+	// ctx->rsa_n = ctx->rsa_d*temp1
+	CHECK(d0_bignum_mul(ctx->rsa_n, ctx->rsa_d, temp1));
 
-	// d = challenge^-1 mod (temp0-1)(temp1-1)
+	// ctx->rsa_d = ctx->rsa_e^-1 mod (ctx->rsa_d-1)(temp1-1)
+	CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one)); // we can't reuse the value from above because temps were unlocked
 	CHECK(d0_bignum_mul(temp0, temp2, temp3));
-	CHECK(d0_bignum_mod_inv(d, challenge, temp0));
+	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp0));
+	UNLOCKTEMPS();
 	return 1;
 fail:
+	UNLOCKTEMPS();
 	return 0;
 }
 
+// temps must NOT be locked when calling this
 static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_function reject, d0_blind_id_t *ctx, void *pass)
 {
-	// uses temp0 to temp4
+	USINGTEMPS(); // uses temp1 to temp4
 	int fail = 0;
 	int gcdfail = 0;
 	int pb = (size + 1)/2;
@@ -265,12 +292,18 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 		pb = 8;
 	if(qb < 8)
 		qb = 8;
+
+	// we use ctx->rsa_d for the first result so that we can unlock temps later
         for (;;)
 	{
-		CHECK(d0_bignum_rand_bit_exact(temp0, pb));
-		if(d0_bignum_isprime(temp0, 10) == 0)
+		LOCKTEMPS();
+		CHECK(d0_bignum_rand_bit_exact(ctx->rsa_d, pb));
+		if(d0_bignum_isprime(ctx->rsa_d, 10) == 0)
+		{
+			UNLOCKTEMPS();
 			continue;
-		CHECK(d0_bignum_sub(temp2, temp0, one));
+		}
+		CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one));
 		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
 			break;
@@ -278,38 +311,56 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 			return 0;
 		++gcdfail;
 	}
+	UNLOCKTEMPS();
+
 	gcdfail = 0;
         for (;;)
 	{
+		LOCKTEMPS();
 		CHECK(d0_bignum_rand_bit_exact(temp1, qb));
-		if(!d0_bignum_cmp(temp1, temp0))
+		if(!d0_bignum_cmp(temp1, ctx->rsa_d))
 		{
+			UNLOCKTEMPS();
 			if(++fail == 3)
 				return 0;
+			continue;
 		}
 		fail = 0;
 
-		// n = temp0*temp1
-		CHECK(d0_bignum_mul(ctx->rsa_n, temp0, temp1));
+		// n = ctx->rsa_d*temp1
+		CHECK(d0_bignum_mul(ctx->rsa_n, ctx->rsa_d, temp1));
 		if(reject(ctx, pass))
+		{
+			UNLOCKTEMPS();
 			continue;
+		}
 
 		if(d0_bignum_isprime(temp1, 10) == 0)
+		{
+			UNLOCKTEMPS();
 			continue;
+		}
 		CHECK(d0_bignum_sub(temp3, temp1, one));
 		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp3, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
+		{
+			// we do NOT unlock, as we still need temp3
 			break;
+		}
+		UNLOCKTEMPS();
 		if(++gcdfail == 3)
 			return 0;
 		++gcdfail;
 	}
 
-	// ctx->rsa_d = ctx->rsa_e^-1 mod (temp0-1)(temp1-1)
-	CHECK(d0_bignum_mul(temp0, temp2, temp3));
+	// ctx->rsa_d = ctx->rsa_e^-1 mod (ctx->rsa_d-1)(temp1-1)
+	CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one)); // we can't reuse the value from above because temps were unlocked
+	CHECK(d0_bignum_mul(ctx->rsa_d, temp2, temp3));
 	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp0));
+	UNLOCKTEMPS();
 	return 1;
 fail:
+	UNLOCKTEMPS();
 	return 0;
 }
 
@@ -390,21 +441,17 @@ fail:
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_key_fastreject(d0_blind_id_t *ctx, int k, d0_fastreject_function reject, void *pass)
 {
-	USINGTEMPS();
 	REPLACING(rsa_e); REPLACING(rsa_d); REPLACING(rsa_n);
 
 	CHECK_ASSIGN(ctx->rsa_e, d0_bignum_int(ctx->rsa_e, 65537));
 	CHECK_ASSIGN(ctx->rsa_d, d0_bignum_zero(ctx->rsa_d));
 	CHECK_ASSIGN(ctx->rsa_n, d0_bignum_zero(ctx->rsa_n));
-	LOCKTEMPS();
 	if(reject)
 		CHECK(d0_rsa_generate_key_fastreject(k+1, reject, ctx, pass)); // must fit G for sure
 	else
-		CHECK(d0_rsa_generate_key(k+1, ctx->rsa_e, ctx->rsa_d, ctx->rsa_n)); // must fit G for sure
-	UNLOCKTEMPS();
+		CHECK(d0_rsa_generate_key(k+1, ctx)); // must fit G for sure
 	return 1;
 fail:
-	UNLOCKTEMPS();
 	return 0;
 }
 
@@ -515,17 +562,13 @@ fail:
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_id_modulus(d0_blind_id_t *ctx)
 {
-	USINGTEMPS();
 	USING(rsa_n);
 	REPLACING(schnorr_G);
 
 	CHECK_ASSIGN(ctx->schnorr_G, d0_bignum_zero(ctx->schnorr_G));
-	LOCKTEMPS();
 	CHECK(d0_dl_generate_key(d0_bignum_size(ctx->rsa_n)-1, ctx->schnorr_G));
-	UNLOCKTEMPS();
 	return 1;
 fail:
-	UNLOCKTEMPS();
 	return 0;
 }
 
