@@ -43,13 +43,49 @@ const char *d0_bsd_license_notice = "\n"
 
 #include <stdlib.h>
 
+#define MUTEX_DEBUG
+
 void *(*d0_malloc)(size_t len) = malloc;
 void (*d0_free)(void *p) = free;
 
-static void *dummy = (void *) 1; // some dummy non-NULL pointer
+#ifdef MUTEX_DEBUG
+#define NUM_MUTEXES 2
+#include <stdio.h>
+static mutexarray[NUM_MUTEXES];
+static int mutexpos = 0;
 static void *dummy_createmutex(void)
 {
-	return NULL;
+	if(mutexpos >= NUM_MUTEXES)
+	{
+		printf("We don't support creating so many mutexes here\n");
+		return NULL;
+	}
+	return &mutexarray[mutexpos++];
+}
+static void dummy_destroymutex(void *m)
+{
+	if(*(int *)m != 0)
+		printf("Destroying in-use mutex\n");
+	*(int *)m = -1;
+}
+static int dummy_lockmutex(void *m)
+{
+	if(*(int *)m != 0)
+		printf("Locking in-use mutex\n");
+	*(int *)m += 1;
+	return 0;
+}
+static int dummy_unlockmutex(void *m)
+{
+	if(*(int *)m != 1)
+		printf("Unlocking not-in-use mutex\n");
+	*(int *)m -= 1;
+	return 0;
+}
+#else
+static void *dummy_createmutex(void)
+{
+	return (void *) 1; // some dummy non-NULL pointer
 }
 static void dummy_destroymutex(void *m)
 {
@@ -62,6 +98,7 @@ static int dummy_unlockmutex(void *m)
 {
 	return 0;
 }
+#endif
 
 void *(*d0_createmutex)(void) = dummy_createmutex;
 void (*d0_destroymutex)(void *) = dummy_destroymutex;
