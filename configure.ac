@@ -4,13 +4,6 @@ AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
 LT_INIT
 
-AC_ARG_ENABLE(threads, AS_HELP_STRING([--disable-threads], [Turn off threading support]), [with_threads=$withval], [with_threads=yes])
-AS_IF([test x"$with_threads" != xno],
-	dnl this also will define HAVE_PTHREAD if it worked
-	[AX_PTHREAD(,
-		[AC_MSG_ERROR([pthreads not found, try --disable-threads])])])
-AM_CONDITIONAL(WITH_THREADS, [test x"$with_threads" != xno])
-
 AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GMP (beware of the OpenSSL license)]), [with_openssl=$withval], [with_openssl=no])
 AC_ARG_WITH(tommath, AS_HELP_STRING([--with-tommath], [Use libtommath instead of GMP (slow, but WTFPL)]), [with_tommath=$withval], [with_tommath=no])
 AM_CONDITIONAL(WITH_OPENSSL, [test x"$with_openssl" != xno])
