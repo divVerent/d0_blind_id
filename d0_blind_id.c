@@ -45,10 +45,9 @@
 
 // our SHA is SHA-256
 #define SHA_DIGESTSIZE 32
-const char *sha(const unsigned char *in, size_t len)
+const unsigned char *sha(unsigned char *h, const unsigned char *in, size_t len)
 {
-	static __thread char h[32];
-	d0_blind_id_util_sha256(h, (const char *) in, len);
+	d0_blind_id_util_sha256((char *) h, (const char *) in, len);
 	return h;
 }
 
@@ -367,18 +366,19 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_longhash_destructive(unsigned char *convbuf, size_t sz, unsigned char *outbuf, size_t outbuflen)
 {
 	size_t n, i;
+	char shabuf[32];
 
 	n = outbuflen;
 	while(n > SHA_DIGESTSIZE)
 	{
-		memcpy(outbuf, sha(convbuf, sz), SHA_DIGESTSIZE);
+		memcpy(outbuf, sha(shabuf, convbuf, sz), SHA_DIGESTSIZE);
 		outbuf += SHA_DIGESTSIZE;
 		n -= SHA_DIGESTSIZE;
 		for(i = 0; i < sz; ++i)
 			if(++convbuf[i])
 				break; // stop until no carry
 	}
-	memcpy(outbuf, sha(convbuf, sz), n);
+	memcpy(outbuf, sha(shabuf, convbuf, sz), n);
 	return 1;
 }
 
@@ -534,6 +534,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_key(const d0_blin
 	static __thread unsigned char convbuf[2048];
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
+	char shabuf[32];
 
 	USING(rsa_n); USING(rsa_e);
 
@@ -548,7 +549,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_key(const d0_blin
 	n = (*outbuflen / 4) * 3;
 	if(n > SHA_DIGESTSIZE)
 		n = SHA_DIGESTSIZE;
-	CHECK(d0_iobuf_write_raw(out, sha(convbuf, sz), n) == n);
+	CHECK(d0_iobuf_write_raw(out, sha(shabuf, convbuf, sz), n) == n);
 	CHECK(d0_iobuf_conv_base64_out(out));
 
 	return d0_iobuf_close(out, outbuflen);
@@ -624,7 +625,7 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_id_request(d0_blind_id_t *ctx, char *outbuf, size_t *outbuflen)
 {
 	d0_iobuf_t *out = NULL;
-	static __thread unsigned char shabuf[2048];
+	static __thread unsigned char hashbuf[2048];
 	size_t sz;
 
 	USINGTEMPS(); // temps: temp0 rsa_blind_signature_camouflage^challenge, temp1 (4^s)*rsa_blind_signature_camouflage^challenge
@@ -640,10 +641,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_id_request(d0_blind_i
 	LOCKTEMPS();
 	CHECK(d0_bignum_mov(temp2, ctx->schnorr_g_to_s));
 	sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
-	if(sz > sizeof(shabuf))
-		sz = sizeof(shabuf);
-	CHECK(d0_longhash_bignum(temp2, shabuf, sz));
-	CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+	if(sz > sizeof(hashbuf))
+		sz = sizeof(hashbuf);
+	CHECK(d0_longhash_bignum(temp2, hashbuf, sz));
+	CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
 
 	// hash complete
 	CHECK(d0_bignum_mod_mul(temp1, temp2, temp0, ctx->rsa_n));
@@ -827,6 +828,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_start(d0_
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
 	D0_BOOL failed = 0;
+	char shabuf[32];
 
 	USINGTEMPS(); // temps: temp0 order, temp0 4^r
 	if(is_first)
@@ -880,7 +882,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_start(d0_
 	CHECK(d0_iobuf_write_bignum(conv, ctx->g_to_t));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
-	CHECK(d0_iobuf_write_raw(out, sha(convbuf, sz), SCHNORR_HASHSIZE) == SCHNORR_HASHSIZE);
+	CHECK(d0_iobuf_write_raw(out, sha(shabuf, convbuf, sz), SCHNORR_HASHSIZE) == SCHNORR_HASHSIZE);
 	CHECK(d0_iobuf_write_packet(out, msg, msglen));
 
 	return d0_iobuf_close(out, outbuflen);
@@ -899,7 +901,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_challenge
 {
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *out = NULL;
-	static __thread unsigned char shabuf[2048];
+	static __thread unsigned char hashbuf[2048];
 	size_t sz;
 
 	USINGTEMPS(); // temps: temp0 order, temp0 signature check
@@ -944,10 +946,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_challenge
 		// we will actually sign SHA(4^s) to prevent a malleability attack!
 		CHECK(d0_bignum_mov(temp2, ctx->schnorr_g_to_s));
 		sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
-		if(sz > sizeof(shabuf))
-			sz = sizeof(shabuf);
-		CHECK(d0_longhash_bignum(temp2, shabuf, sz));
-		CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+		if(sz > sizeof(hashbuf))
+			sz = sizeof(hashbuf);
+		CHECK(d0_longhash_bignum(temp2, hashbuf, sz));
+		CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
 
 		// + 7 / 8 is too large, so let's mod it
 		CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
@@ -1054,6 +1056,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_verify(d0
 	static __thread unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz;
+	char shabuf[32];
 
 	USINGTEMPS(); // temps: 0 y 1 order
 	USING(challenge); USING(schnorr_G);
@@ -1095,7 +1098,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_verify(d0
 	CHECK(d0_iobuf_write_bignum(conv, ctx->other_g_to_t));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
-	if(memcmp(sha(convbuf, sz), ctx->msghash, SCHNORR_HASHSIZE))
+	if(memcmp(sha(shabuf, convbuf, sz), ctx->msghash, SCHNORR_HASHSIZE))
 	{
 		// FAIL (not owned by player)
 		goto fail;
@@ -1122,7 +1125,7 @@ fail:
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_generate_missing_signature(d0_blind_id_t *ctx)
 {
 	size_t sz;
-	static __thread unsigned char shabuf[2048];
+	static __thread unsigned char hashbuf[2048];
 
 	USINGTEMPS(); // temps: 2 hash
 	REPLACING(schnorr_H_g_to_s_signature);
@@ -1132,11 +1135,11 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_generate_
 
 	// we will actually sign SHA(4^s) to prevent a malleability attack!
 	sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
-	if(sz > sizeof(shabuf))
-		sz = sizeof(shabuf);
-	CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, shabuf, sz));
+	if(sz > sizeof(hashbuf))
+		sz = sizeof(hashbuf);
+	CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, hashbuf, sz));
 	LOCKTEMPS();
-	CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+	CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
 
 	// + 7 / 8 is too large, so let's mod it
 	CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
@@ -1154,7 +1157,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_
 {
 	d0_iobuf_t *out = NULL;
 	unsigned char *convbuf = NULL;
-	static __thread unsigned char shabuf[2048];
+	static __thread unsigned char hashbuf[2048];
 	d0_iobuf_t *conv = NULL;
 	size_t sz = 0;
 
@@ -1191,10 +1194,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_sign_internal(d0_
 	CHECK(d0_iobuf_write_bignum(conv, temp1));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
-	CHECK(d0_longhash_destructive(convbuf, sz, shabuf, (d0_bignum_size(temp0) + 7) / 8));
+	CHECK(d0_longhash_destructive(convbuf, sz, hashbuf, (d0_bignum_size(temp0) + 7) / 8));
 	d0_free(convbuf);
 	convbuf = NULL;
-	CHECK(d0_bignum_import_unsigned(temp2, shabuf, (d0_bignum_size(temp0) + 7) / 8));
+	CHECK(d0_bignum_import_unsigned(temp2, hashbuf, (d0_bignum_size(temp0) + 7) / 8));
 	CHECK(d0_iobuf_write_bignum(out, temp2));
 
 	// multiply with secret, sub k, modulo order
@@ -1232,7 +1235,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 	d0_iobuf_t *in = NULL;
 	d0_iobuf_t *conv = NULL;
 	unsigned char *convbuf = NULL;
-	static __thread unsigned char shabuf[2048];
+	static __thread unsigned char hashbuf[2048];
 	size_t sz;
 
 	USINGTEMPS(); // temps: 0 sig^e 2 g^s 3 g^-s 4 order
@@ -1274,10 +1277,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 
 		// we will actually sign SHA(4^s) to prevent a malleability attack!
 		sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
-		if(sz > sizeof(shabuf))
-			sz = sizeof(shabuf);
-		CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, shabuf, sz));
-		CHECK(d0_bignum_import_unsigned(temp2, shabuf, sz));
+		if(sz > sizeof(hashbuf))
+			sz = sizeof(hashbuf);
+		CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, hashbuf, sz));
+		CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
 
 		// + 7 / 8 is too large, so let's mod it
 		CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
@@ -1315,10 +1318,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_sign_with_private_id_verify_internal(d
 	CHECK(d0_iobuf_write_bignum(conv, temp3));
 	d0_iobuf_close(conv, &sz);
 	conv = NULL;
-	CHECK(d0_longhash_destructive(convbuf, sz, shabuf, (d0_bignum_size(temp4) + 7) / 8));
+	CHECK(d0_longhash_destructive(convbuf, sz, hashbuf, (d0_bignum_size(temp4) + 7) / 8));
 	d0_free(convbuf);
 	convbuf = NULL;
-	CHECK(d0_bignum_import_unsigned(temp1, shabuf, (d0_bignum_size(temp4) + 7) / 8));
+	CHECK(d0_bignum_import_unsigned(temp1, hashbuf, (d0_bignum_size(temp4) + 7) / 8));
 
 	// verify signature
 	CHECK(!d0_bignum_cmp(temp0, temp1));
@@ -1350,6 +1353,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_id(const d0_blind
 	static __thread unsigned char convbuf[1024];
 	d0_iobuf_t *conv = NULL;
 	size_t sz, n;
+	char shabuf[32];
 
 	USING(rsa_n);
 	USING(rsa_e);
@@ -1367,7 +1371,7 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_fingerprint64_public_id(const d0_blind
 	n = (*outbuflen / 4) * 3;
 	if(n > SHA_DIGESTSIZE)
 		n = SHA_DIGESTSIZE;
-	CHECK(d0_iobuf_write_raw(out, sha(convbuf, sz), n) == n);
+	CHECK(d0_iobuf_write_raw(out, sha(shabuf, convbuf, sz), n) == n);
 	CHECK(d0_iobuf_conv_base64_out(out));
 
 	return d0_iobuf_close(out, outbuflen);
