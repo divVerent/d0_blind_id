@@ -58,10 +58,30 @@ struct d0_bignum_s
 
 static gmp_randstate_t RANDSTATE;
 static d0_bignum_t temp;
-static void *tempmutex = NULL; // hold this mutex when using RANDSTATE or temp
+static unsigned char numbuf[65536];
+static void *tempmutex = NULL; // hold this mutex when using RANDSTATE or temp or numbuf
 
 #include <time.h>
 #include <stdio.h>
+
+static void *allocate_function (size_t alloc_size)
+{
+	return d0_malloc(alloc_size);
+}
+static void *reallocate_function (void *ptr, size_t old_size, size_t new_size)
+{
+	void *data;
+	if(old_size == new_size)
+		return ptr;
+	data = d0_malloc(new_size);
+	memcpy(data, ptr, (old_size < new_size) ? old_size : new_size);
+	d0_free(ptr);
+	return data;
+}
+void deallocate_function (void *ptr, size_t size)
+{
+	d0_free(ptr);
+}
 
 D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 {
@@ -71,6 +91,8 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_bignum_INITIALIZE(void)
 
 	tempmutex = d0_createmutex();
 	d0_lockmutex(tempmutex);
+
+	mp_set_memory_functions(allocate_function, reallocate_function, deallocate_function);
 
 	d0_bignum_init(&temp);
 	gmp_randinit_mt(RANDSTATE);
@@ -146,28 +168,48 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
+	D0_BOOL ret;
 	size_t count = 0;
+
+	d0_lockmutex(tempmutex);
 	numbuf[0] = mpz_sgn(bignum->z) & 3;
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
 		count = (mpz_sizeinbase(bignum->z, 2) + 7) / 8;
 		if(count > sizeof(numbuf) - 1)
+		{
+			d0_unlockmutex(tempmutex);
 			return 0;
+		}
 		mpz_export(numbuf+1, &count, 1, 1, 0, 0, bignum->z);
 	}
-	return d0_iobuf_write_packet(buf, numbuf, count + 1);
+	ret = d0_iobuf_write_packet(buf, numbuf, count + 1);
+	d0_unlockmutex(tempmutex);
+	return ret;
 }
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
 	size_t count = sizeof(numbuf);
+
+	d0_lockmutex(tempmutex);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	if(count < 1)
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
-	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
+	}
+	if(!bignum)
+		bignum = d0_bignum_new();
+	if(!bignum)
+	{
+		d0_unlockmutex(tempmutex);
+		return NULL;
+	}
 	if(numbuf[0] & 3) // nonzero
 	{
 		mpz_import(bignum->z, count-1, 1, 1, 0, 0, numbuf+1);
@@ -178,6 +220,7 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	{
 		mpz_set_ui(bignum->z, 0);
 	}
+	d0_unlockmutex(tempmutex);
 	return bignum;
 }
 
@@ -428,5 +471,5 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
-	return mpz_get_str(NULL, base, x->z);
+	return mpz_get_str(NULL, base, x->z); // this allocates!
 }

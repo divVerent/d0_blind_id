@@ -51,7 +51,8 @@ struct d0_bignum_s
 };
 
 static d0_bignum_t temp;
-static void *tempmutex = NULL; // hold this mutex when using temp
+static unsigned char numbuf[65536];
+static void *tempmutex = NULL; // hold this mutex when using temp or numbuf
 
 #include <stdio.h>
 
@@ -136,28 +137,47 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
+	D0_BOOL ret;
 	size_t count = 0;
+
+	d0_lockmutex(tempmutex);
 	numbuf[0] = (mp_iszero(&bignum->z) ? 0 : (bignum->z.sign == MP_ZPOS) ? 1 : 3);
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
 		count = mp_unsigned_bin_size((mp_int *) &bignum->z);
 		if(count > sizeof(numbuf) - 1)
+		{
+			d0_unlockmutex(tempmutex);
 			return 0;
+		}
 		mp_to_unsigned_bin((mp_int *) &bignum->z, numbuf+1);
 	}
-	return d0_iobuf_write_packet(buf, numbuf, count + 1);
+	ret = d0_iobuf_write_packet(buf, numbuf, count + 1);
+	d0_unlockmutex(tempmutex);
+	return ret;
 }
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
 	size_t count = sizeof(numbuf);
+	d0_lockmutex(tempmutex);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	if(count < 1)
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
-	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
+	}
+	if(!bignum)
+		bignum = d0_bignum_new();
+	if(!bignum)
+	{
+		d0_unlockmutex(tempmutex);
+		return NULL;
+	}
 	if(numbuf[0] & 3) // nonzero
 	{
 		mp_read_unsigned_bin(&bignum->z, numbuf+1, count-1);
@@ -168,6 +188,7 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	{
 		mp_zero(&bignum->z);
 	}
+	d0_unlockmutex(tempmutex);
 	return bignum;
 }
 
@@ -259,15 +280,18 @@ static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t 
 	size_t n = d0_bignum_size(limit);
 	size_t b = (n + 7) / 8;
 	unsigned char mask = "\xFF\x7F\x3F\x1F\x0F\x07\x03\x01"[8*b - n];
-	unsigned char numbuf[65536];
 	assert(b <= sizeof(numbuf));
+	d0_lockmutex(tempmutex);
 	for(;;)
 	{
 		rand_bytes(numbuf, b);
 		numbuf[0] &= mask;
 		r = d0_bignum_import_unsigned(r, numbuf, b);
 		if(d0_bignum_cmp(r, limit) < 0)
+		{
+			d0_unlockmutex(tempmutex);
 			return r;
+		}
 	}
 }
 
@@ -459,7 +483,10 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
-	static __thread char str[65536];
-	mp_toradix_n((mp_int *) &x->z, str, base, sizeof(str));
+	char *str;
+	int sz = 0;
+	mp_radix_size((mp_int *) &x->z, base, &sz);
+	str = d0_malloc(sz + 1);
+	mp_toradix_n((mp_int *) &x->z, str, base, sz + 1);
 	return str;
 }

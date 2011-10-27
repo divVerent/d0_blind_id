@@ -60,7 +60,8 @@ struct d0_bignum_s
 
 static d0_bignum_t temp;
 static BN_CTX *ctx;
-static void *tempmutex = NULL; // hold this mutex when using ctx or temp
+static unsigned char numbuf[65536];
+static void *tempmutex = NULL; // hold this mutex when using ctx or temp or numbuf
 
 #include <time.h>
 #include <stdio.h>
@@ -201,28 +202,48 @@ void d0_bignum_SHUTDOWN(void)
 
 D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
+	D0_BOOL ret;
 	size_t count = 0;
+
+	d0_lockmutex(tempmutex);
 	numbuf[0] = BN_is_zero(&bignum->z) ? 0 : BN_is_negative(&bignum->z) ? 3 : 1;
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
 		count = BN_num_bytes(&bignum->z);
 		if(count > sizeof(numbuf) - 1)
+		{
+			d0_unlockmutex(tempmutex);
 			return 0;
+		}
 		BN_bn2bin(&bignum->z, numbuf+1);
 	}
-	return d0_iobuf_write_packet(buf, numbuf, count + 1);
+	ret = d0_iobuf_write_packet(buf, numbuf, count + 1);
+	d0_unlockmutex(tempmutex);
+	return ret;
 }
 
 d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 {
-	static __thread unsigned char numbuf[65536];
 	size_t count = sizeof(numbuf);
+
+	d0_lockmutex(tempmutex);
 	if(!d0_iobuf_read_packet(buf, numbuf, &count))
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
+	}
 	if(count < 1)
+	{
+		d0_unlockmutex(tempmutex);
 		return NULL;
-	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
+	}
+	if(!bignum)
+		bignum = d0_bignum_new();
+	if(!bignum)
+	{
+		d0_unlockmutex(tempmutex);
+		return NULL;
+	}
 	if(numbuf[0] & 3) // nonzero
 	{
 		BN_bin2bn(numbuf+1, count-1, &bignum->z);
@@ -233,6 +254,7 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	{
 		BN_zero(&bignum->z);
 	}
+	d0_unlockmutex(tempmutex);
 	return bignum;
 }
 
@@ -490,10 +512,18 @@ d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const
 
 char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
+	char *s = NULL;
+	char *s2;
+	size_t n;
 	if(base == 10)
-		return BN_bn2dec(&x->z);
+		s = BN_bn2dec(&x->z);
 	else if(base == 16)
-		return BN_bn2hex(&x->z);
+		s = BN_bn2hex(&x->z);
 	else
 		assert(!"Other bases not implemented");
+	n = strlen(s) + 1;
+	s2 = d0_malloc(n);
+	memcpy(s2, s, n);
+	OPENSSL_free(s);
+	return s2;
 }
