@@ -1,8 +1,15 @@
-AC_INIT([d0_blind_id], [0.4], [divVerent@xonotic.org])
+AC_INIT([d0_blind_id],[0.4],[divVerent@xonotic.org])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
-AC_PROG_LIBTOOL
+LT_INIT
+
+AC_ARG_ENABLE(threads, AS_HELP_STRING([--disable-threads], [Turn off threading support]), [with_threads=$withval], [with_threads=yes])
+AS_IF([test x"$with_threads" != xno],
+	dnl this also will define HAVE_PTHREAD if it worked
+	[AX_PTHREAD(,
+		[AC_MSG_ERROR([pthreads not found, try --disable-threads])])])
+AM_CONDITIONAL(WITH_THREADS, [test x"$with_threads" != xno])
 
 AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GMP (beware of the OpenSSL license)]), [with_openssl=$withval], [with_openssl=no])
 AC_ARG_WITH(tommath, AS_HELP_STRING([--with-tommath], [Use libtommath instead of GMP (slow, but WTFPL)]), [with_tommath=$withval], [with_tommath=no])
@@ -20,7 +27,7 @@ AS_IF([test x"$with_tommath" != xno],
 
 AC_ARG_ENABLE(rijndael, AS_HELP_STRING([--disable-rijndael], [Disable build of the d0_rijndael library]), [enable_aes=$enableval], [enable_aes=yes])
 
-AS_IF([test -f d0_rijndael.c], [], [AS_IF([test x"$enable_aes" != x"no"], [AC_MSG_ERROR([d0_rijndael.c is missing, try --disable-rijndael or download the full version of this library, but beware of crypto import laws then])])])
+AS_IF([test -f d0_rijndael.c], [], [AS_IF([test x"$enable_aes" != xno], [AC_MSG_ERROR([d0_rijndael.c is missing, try --disable-rijndael or download the full version of this library, but beware of crypto import laws then])])])
 AM_CONDITIONAL(ENABLE_RIJNDAEL, [test x$enable_aes = xyes])
 
 AC_CONFIG_FILES([Makefile d0_blind_id.pc d0_rijndael.pc])
