@@ -74,7 +74,8 @@ static void *reallocate_function (void *ptr, size_t old_size, size_t new_size)
 	if(old_size == new_size)
 		return ptr;
 	data = d0_malloc(new_size);
-	memcpy(data, ptr, (old_size < new_size) ? old_size : new_size);
+	if(ptr && data)
+		memcpy(data, ptr, (old_size < new_size) ? old_size : new_size);
 	d0_free(ptr);
 	return data;
 }
