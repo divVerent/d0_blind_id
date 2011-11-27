@@ -97,12 +97,12 @@ static int dummy_unlockmutex(void *m)
 }
 #endif
 
-d0_malloc_t *d0_malloc = malloc;
-d0_free_t *d0_free = free;
-d0_createmutex_t *d0_createmutex = dummy_createmutex;
-d0_destroymutex_t *d0_destroymutex = dummy_destroymutex;
-d0_lockmutex_t *d0_lockmutex = dummy_lockmutex;
-d0_unlockmutex_t *d0_unlockmutex = dummy_unlockmutex;
+d0_malloc_t *d0_malloc = NULL;
+d0_free_t *d0_free = NULL;
+d0_createmutex_t *d0_createmutex = NULL;
+d0_destroymutex_t *d0_destroymutex = NULL;
+d0_lockmutex_t *d0_lockmutex = NULL;
+d0_unlockmutex_t *d0_unlockmutex = NULL;
 
 void d0_setmallocfuncs(d0_malloc_t *m, d0_free_t *f)
 {
@@ -116,4 +116,10 @@ void d0_setmutexfuncs(d0_createmutex_t *c, d0_destroymutex_t *d, d0_lockmutex_t 
 	d0_destroymutex = (d ? d : dummy_destroymutex);
 	d0_lockmutex = (l ? l : dummy_lockmutex);
 	d0_unlockmutex = (u ? u : dummy_unlockmutex);
+}
+
+void d0_initfuncs(void)
+{
+	d0_setmallocfuncs(d0_malloc, d0_free);
+	d0_setmutexfuncs(d0_createmutex, d0_destroymutex, d0_lockmutex, d0_unlockmutex);
 }

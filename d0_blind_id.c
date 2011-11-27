@@ -120,6 +120,7 @@ static void *tempmutex = NULL; // hold this mutex when using temp0 to temp4
 D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_INITIALIZE(void)
 {
 	USINGTEMPS();
+	d0_initfuncs();
 	tempmutex = d0_createmutex();
 	LOCKTEMPS();
 	CHECK(d0_bignum_INITIALIZE());
