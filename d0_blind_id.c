@@ -1440,6 +1440,23 @@ fail:
 	return 0;
 }
 
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_verify_private_id(const d0_blind_id_t *ctx)
+{
+	USINGTEMPS(); // temps: temp0 = order, temp1 = g^s
+	USING(schnorr_G); USING(schnorr_s); USING(schnorr_g_to_s);
+
+	LOCKTEMPS();
+	CHECK(d0_dl_get_order(temp0, ctx->schnorr_G));
+	CHECK(d0_bignum_mod_pow(temp1, four, ctx->schnorr_s, ctx->schnorr_G));
+	CHECK(!d0_bignum_cmp(temp1, ctx->schnorr_g_to_s));
+	UNLOCKTEMPS();
+	return 1;
+
+fail:
+	UNLOCKTEMPS();
+	return 0;
+}
+
 d0_blind_id_t *d0_blind_id_new(void)
 {
 	d0_blind_id_t *b = d0_malloc(sizeof(d0_blind_id_t));
