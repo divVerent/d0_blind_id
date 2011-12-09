@@ -640,11 +640,10 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_generate_private_id_request(d0_blind_i
 
 	// we will actually sign HA(4^s) to prevent a malleability attack!
 	LOCKTEMPS();
-	CHECK(d0_bignum_mov(temp2, ctx->schnorr_g_to_s));
 	sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
 	if(sz > sizeof(hashbuf))
 		sz = sizeof(hashbuf);
-	CHECK(d0_longhash_bignum(temp2, hashbuf, sz));
+	CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, hashbuf, sz));
 	CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
 
 	// hash complete
@@ -940,26 +939,24 @@ D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_authenticate_with_private_id_challenge
 		CHECK(d0_bignum_cmp(ctx->schnorr_H_g_to_s_signature, zero) >= 0);
 		CHECK(d0_bignum_cmp(ctx->schnorr_H_g_to_s_signature, ctx->rsa_n) < 0);
 
-		// check signature of key (t = k^d, so, t^challenge = k)
-		LOCKTEMPS();
-		CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_H_g_to_s_signature, ctx->rsa_e, ctx->rsa_n));
-
-		// we will actually sign SHA(4^s) to prevent a malleability attack!
-		CHECK(d0_bignum_mov(temp2, ctx->schnorr_g_to_s));
-		sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
-		if(sz > sizeof(hashbuf))
-			sz = sizeof(hashbuf);
-		CHECK(d0_longhash_bignum(temp2, hashbuf, sz));
-		CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
-
-		// + 7 / 8 is too large, so let's mod it
-		CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
-
-		// hash complete
-		if(d0_bignum_cmp(temp0, temp1))
+		if(d0_bignum_cmp(ctx->schnorr_H_g_to_s_signature, zero))
 		{
-			// accept the key anyway, but mark as failed signature! will later return 0 in status
-			CHECK(d0_bignum_zero(ctx->schnorr_H_g_to_s_signature));
+			// check signature of key (t = k^d, so, t^challenge = k)
+			LOCKTEMPS();
+			CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_H_g_to_s_signature, ctx->rsa_e, ctx->rsa_n));
+
+			// we will actually sign SHA(4^s) to prevent a malleability attack!
+			sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
+			if(sz > sizeof(hashbuf))
+				sz = sizeof(hashbuf);
+			CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, hashbuf, sz));
+			CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
+
+			// + 7 / 8 is too large, so let's mod it
+			CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
+
+			// hash complete
+			CHECK(d0_bignum_cmp(temp0, temp1) == 0);
 		}
 	}
 
@@ -1396,6 +1393,47 @@ D0_BOOL d0_blind_id_sessionkey_public_id(const d0_blind_id_t *ctx, char *outbuf,
 	ret = d0_longhash_bignum(temp0, (unsigned char *) outbuf, *outbuflen);
 	UNLOCKTEMPS();
 	return ret;
+
+fail:
+	UNLOCKTEMPS();
+	return 0;
+}
+
+D0_WARN_UNUSED_RESULT D0_BOOL d0_blind_id_verify_public_id(const d0_blind_id_t *ctx, D0_BOOL *status)
+{
+	unsigned char hashbuf[2048];
+	size_t sz;
+
+	USINGTEMPS(); // temps: temp0 temp1 temp2
+	USING(schnorr_H_g_to_s_signature); USING(rsa_e); USING(rsa_n); USING(schnorr_g_to_s);
+
+	if(d0_bignum_cmp(ctx->schnorr_H_g_to_s_signature, zero))
+	{
+		// check signature of key (t = k^d, so, t^challenge = k)
+		LOCKTEMPS();
+
+		CHECK(d0_bignum_mod_pow(temp0, ctx->schnorr_H_g_to_s_signature, ctx->rsa_e, ctx->rsa_n));
+
+		// we will actually sign SHA(4^s) to prevent a malleability attack!
+		sz = (d0_bignum_size(ctx->rsa_n) + 7) / 8; // this is too long, so we have to take the value % rsa_n when "decrypting"
+		if(sz > sizeof(hashbuf))
+			sz = sizeof(hashbuf);
+		CHECK(d0_longhash_bignum(ctx->schnorr_g_to_s, hashbuf, sz));
+		CHECK(d0_bignum_import_unsigned(temp2, hashbuf, sz));
+
+		// + 7 / 8 is too large, so let's mod it
+		CHECK(d0_bignum_divmod(NULL, temp1, temp2, ctx->rsa_n));
+
+		// hash complete
+		CHECK(d0_bignum_cmp(temp0, temp1) == 0);
+
+		*status = 1;
+	}
+	else
+		*status = 0;
+
+	UNLOCKTEMPS();
+	return 1;
 
 fail:
 	UNLOCKTEMPS();
