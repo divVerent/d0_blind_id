@@ -1,9 +1,11 @@
+#include "d0.h"
+
 /*
  * include the license notice into the dynamic library to "reproduce the
  * copyright notice" automatically, so the application developer does not have
  * to care about this term
  */
-const char *d0_sha2_c_bsd_license_notice = "\n"
+const char *d0_sha2_c_bsd_license_notice D0_USED = "\n"
 "/*\n"
 " * FILE:	sha2.c\n"
 " * AUTHOR:	Aaron D. Gifford - http://www.aarongifford.com/\n"

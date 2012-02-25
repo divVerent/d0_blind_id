@@ -1,9 +1,11 @@
+#include "d0.h"
+
 /*
  * include the license notice into the dynamic library to "reproduce the
  * copyright notice" automatically, so the application developer does not have
  * to care about this term
  */
-const char *d0_bsd_license_notice = "\n"
+const char *d0_bsd_license_notice D0_USED = "\n"
 "/*\n"
 " * FILE:	d0.c\n"
 " * AUTHOR:	Rudolf Polzer - divVerent@xonotic.org\n"
@@ -38,8 +40,6 @@ const char *d0_bsd_license_notice = "\n"
 " * $Format:commit %H$\n"
 " * $Id$\n"
 " */\n";
-
-#include "d0.h"
 
 #include <stdlib.h>
 
