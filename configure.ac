@@ -2,6 +2,7 @@ AC_INIT([d0_blind_id],[0.5],[divVerent@xonotic.org])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_PROG_CC
+AM_PROG_AR
 LT_INIT
 
 AC_ARG_WITH(openssl, AS_HELP_STRING([--with-openssl], [Use OpenSSL instead of GMP (beware of the OpenSSL license)]), [with_openssl=$withval], [with_openssl=no])
