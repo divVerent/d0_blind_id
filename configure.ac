@@ -20,7 +20,7 @@ AS_IF([test x"$with_tommath" != xno],
 
 AC_ARG_ENABLE(rijndael, AS_HELP_STRING([--disable-rijndael], [Disable build of the d0_rijndael library]), [enable_aes=$enableval], [enable_aes=yes])
 
-AS_IF([test -f d0_rijndael.c], [], [AS_IF([test x"$enable_aes" != xno], [AC_MSG_ERROR([d0_rijndael.c is missing, try --disable-rijndael or download the full version of this library, but beware of crypto import laws then])])])
+AS_IF([test -f "$srcdir/d0_rijndael.c"], [], [AS_IF([test x"$enable_aes" != xno], [AC_MSG_ERROR([d0_rijndael.c is missing, try --disable-rijndael or download the full version of this library, but beware of crypto import laws then])])])
 AM_CONDITIONAL(ENABLE_RIJNDAEL, [test x$enable_aes = xyes])
 
 AC_CONFIG_FILES([Makefile d0_blind_id.pc d0_rijndael.pc])
