@@ -16,11 +16,17 @@ libd0_blind_id_la_SOURCES = d0_blind_id.c d0.c d0_iobuf.c sha2.c \
 
 if WITH_TOMMATH
 libd0_blind_id_la_SOURCES += d0_bignum-tommath.c
+libd0_blind_id_la_CPPFLAGS = -DTOMMATH
+else
+if WITH_TOMSFASTMATH
+libd0_blind_id_la_SOURCES += d0_bignum-tommath.c
+libd0_blind_id_la_CPPFLAGS = -DTOMSFASTMATH
 else
 if WITH_OPENSSL
 libd0_blind_id_la_SOURCES += d0_bignum-openssl.c
 else
 libd0_blind_id_la_SOURCES += d0_bignum-gmp.c
+endif
 endif
 endif
 libd0_blind_id_la_LDFLAGS = -versioninfo 7:0:7

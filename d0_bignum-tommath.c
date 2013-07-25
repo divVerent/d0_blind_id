@@ -40,14 +40,27 @@
 
 #include "d0_bignum.h"
 
-#include <tommath.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 
+// tommath/tomsfastmath distinction
+#if defined(TOMMATH)
+# include <tommath.h>
+# define TM(name) MP_##name
+# define tm(name) mp_##name
+#elif defined(TOMSFASTMATH)
+# include <tfm.h>
+# define TM(name) FP_##name
+# define tm(name) fp_##name
+# define mp_clear
+#else
+# error Either TOMMATH or TOMSFASTMATH must be defined.
+#endif
+
 struct d0_bignum_s
 {
-	mp_int z;
+	tm(int) z;
 };
 
 static d0_bignum_t temp;
@@ -141,16 +154,16 @@ D0_BOOL d0_iobuf_write_bignum(d0_iobuf_t *buf, const d0_bignum_t *bignum)
 	size_t count = 0;
 
 	d0_lockmutex(tempmutex);
-	numbuf[0] = (mp_iszero(&bignum->z) ? 0 : (bignum->z.sign == MP_ZPOS) ? 1 : 3);
+	numbuf[0] = (tm(iszero)(&bignum->z) ? 0 : (bignum->z.sign == TM(ZPOS)) ? 1 : 3);
 	if((numbuf[0] & 3) != 0) // nonzero
 	{
-		count = mp_unsigned_bin_size((mp_int *) &bignum->z);
+		count = tm(unsigned_bin_size)((tm(int) *) &bignum->z);
 		if(count > sizeof(numbuf) - 1)
 		{
 			d0_unlockmutex(tempmutex);
 			return 0;
 		}
-		mp_to_unsigned_bin((mp_int *) &bignum->z, numbuf+1);
+		tm(to_unsigned_bin)((tm(int) *) &bignum->z, numbuf+1);
 	}
 	ret = d0_iobuf_write_packet(buf, numbuf, count + 1);
 	d0_unlockmutex(tempmutex);
@@ -180,13 +193,13 @@ d0_bignum_t *d0_iobuf_read_bignum(d0_iobuf_t *buf, d0_bignum_t *bignum)
 	}
 	if(numbuf[0] & 3) // nonzero
 	{
-		mp_read_unsigned_bin(&bignum->z, numbuf+1, count-1);
+		tm(read_unsigned_bin)(&bignum->z, numbuf+1, count-1);
 		if(numbuf[0] & 2) // negative
-			bignum->z.sign = MP_NEG;
+			bignum->z.sign = TM(NEG);
 	}
 	else // zero
 	{
-		mp_zero(&bignum->z);
+		tm(zero)(&bignum->z);
 	}
 	d0_unlockmutex(tempmutex);
 	return bignum;
@@ -196,7 +209,7 @@ ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t b
 {
 	unsigned long bufsize_;
 	unsigned long count;
-	count = mp_unsigned_bin_size((mp_int *) &bignum->z);
+	count = tm(unsigned_bin_size)((tm(int) *) &bignum->z);
 	if(count > bufsize)
 		return -1;
 	if(bufsize > count)
@@ -205,32 +218,7 @@ ssize_t d0_bignum_export_unsigned(const d0_bignum_t *bignum, void *buf, size_t b
 		memset(buf, 0, bufsize - count);
 		buf += bufsize - count;
 	}
-	bufsize_ = count;
-	mp_to_unsigned_bin_n((mp_int *) &bignum->z, buf, &bufsize_);
-	bufsize = bufsize_;
-	if(bufsize > count)
-	{
-		// REALLY BAD
-		// mpz_sizeinbase lied to us
-		// buffer overflow
-		// there is no sane way whatsoever to handle this
-		abort();
-	}
-	if(bufsize < count)
-	{
-		// BAD
-		// mpz_sizeinbase lied to us
-		// move the number
-		if(count == 0)
-		{
-			memset(buf, 0, count);
-		}
-		else
-		{
-			memmove(buf + count - bufsize, buf, bufsize);
-			memset(buf, 0, count - bufsize);
-		}
-	}
+	tm(to_unsigned_bin)((tm(int) *) &bignum->z, buf);
 	return bufsize;
 }
 
@@ -238,41 +226,45 @@ d0_bignum_t *d0_bignum_import_unsigned(d0_bignum_t *bignum, const void *buf, siz
 {
 	size_t count;
 	if(!bignum) bignum = d0_bignum_new(); if(!bignum) return NULL;
-	mp_read_unsigned_bin(&bignum->z, buf, bufsize);
+	tm(read_unsigned_bin)(&bignum->z, (void *) buf, bufsize);
 	return bignum;
 }
 
 d0_bignum_t *d0_bignum_new(void)
 {
 	d0_bignum_t *b = d0_malloc(sizeof(d0_bignum_t));
-	mp_init(&b->z);
+	tm(init)(&b->z);
 	return b;
 }
 
 void d0_bignum_free(d0_bignum_t *a)
 {
-	mp_clear(&a->z);
+#ifdef TOMMATH
+	tm(clear)(&a->z);
+#endif
 	d0_free(a);
 }
 
 void d0_bignum_init(d0_bignum_t *b)
 {
-	mp_init(&b->z);
+	tm(init)(&b->z);
 }
 
 void d0_bignum_clear(d0_bignum_t *a)
 {
-	mp_clear(&a->z);
+#ifdef TOMMATH
+	tm(clear)(&a->z);
+#endif
 }
 
 size_t d0_bignum_size(const d0_bignum_t *r)
 {
-	return mp_count_bits((mp_int *) &r->z);
+	return tm(count_bits)((tm(int) *) &r->z);
 }
 
 int d0_bignum_cmp(const d0_bignum_t *a, const d0_bignum_t *b)
 {
-	return mp_cmp((mp_int *) &a->z, (mp_int *) &b->z);
+	return tm(cmp)((tm(int) *) &a->z, (tm(int) *) &b->z);
 }
 
 static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t *limit)
@@ -298,10 +290,10 @@ static d0_bignum_t *d0_bignum_rand_0_to_limit(d0_bignum_t *r, const d0_bignum_t 
 d0_bignum_t *d0_bignum_rand_range(d0_bignum_t *r, const d0_bignum_t *min, const d0_bignum_t *max)
 {
 	d0_lockmutex(tempmutex);
-	mp_sub((mp_int *) &max->z, (mp_int *) &min->z, &temp.z);
+	tm(sub)((tm(int) *) &max->z, (tm(int) *) &min->z, &temp.z);
 	r = d0_bignum_rand_0_to_limit(r, &temp);
 	d0_unlockmutex(tempmutex);
-	mp_add((mp_int *) &r->z, (mp_int *) &min->z, &r->z);
+	tm(add)((tm(int) *) &r->z, (tm(int) *) &min->z, &r->z);
 	return r;
 }
 
@@ -349,7 +341,7 @@ d0_bignum_t *d0_bignum_rand_bit_exact(d0_bignum_t *r, size_t n)
 d0_bignum_t *d0_bignum_zero(d0_bignum_t *r)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_zero(&r->z);
+	tm(zero)(&r->z);
 	return r;
 }
 
@@ -361,7 +353,25 @@ d0_bignum_t *d0_bignum_one(d0_bignum_t *r)
 d0_bignum_t *d0_bignum_int(d0_bignum_t *r, int n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_set_int(&r->z, n);
+#ifdef TOMMATH
+	tm(set_int)(&r->z, n);
+#else
+	// libtomsfastmath lacks this function
+	if (n < 0)
+		assert(!"Sorry, importing signed is not implemented");
+	{
+		unsigned char nbuf[sizeof(n)];
+		size_t i;
+		// big endian!
+		for (i = sizeof(n); i-- > 0; )
+		{
+			nbuf[i] = n & 255;
+			n >>= 8;
+		}
+		tm(read_unsigned_bin)(&r->z, nbuf, sizeof(n));
+	}
+#endif
+
 	return r;
 }
 
@@ -370,14 +380,14 @@ d0_bignum_t *d0_bignum_mov(d0_bignum_t *r, const d0_bignum_t *a)
 	if(r == a)
 		return r; // trivial
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_copy((mp_int *) &a->z, &r->z);
+	tm(copy)((tm(int) *) &a->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_neg(d0_bignum_t *r, const d0_bignum_t *a)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_neg((mp_int *) &a->z, &r->z);
+	tm(neg)((tm(int) *) &a->z, &r->z);
 	return r;
 }
 
@@ -385,32 +395,32 @@ d0_bignum_t *d0_bignum_shl(d0_bignum_t *r, const d0_bignum_t *a, ssize_t n)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
 	if(n > 0)
-		mp_mul_2d((mp_int *) &a->z,  n, &r->z);
+		tm(mul_2d)((tm(int) *) &a->z,  n, &r->z);
 	else if(n < 0)
-		mp_div_2d((mp_int *) &a->z, -n, &r->z, NULL);
+		tm(div_2d)((tm(int) *) &a->z, -n, &r->z, NULL);
 	else
-		mp_copy((mp_int *) &a->z, &r->z);
+		tm(copy)((tm(int) *) &a->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_add((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
+	tm(add)((tm(int) *) &a->z, (tm(int) *) &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_sub((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
+	tm(sub)((tm(int) *) &a->z, (tm(int) *) &b->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_mul((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
+	tm(mul)((tm(int) *) &a->z, (tm(int) *) &b->z, &r->z);
 	return r;
 }
 
@@ -419,9 +429,9 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 	if(!q && !m)
 		m = d0_bignum_new();
 	if(q)
-		mp_div((mp_int *) &a->z, (mp_int *) &b->z, &q->z, m ? &m->z : NULL);
+		tm(div)((tm(int) *) &a->z, (tm(int) *) &b->z, &q->z, m ? &m->z : NULL);
 	else
-		mp_mod((mp_int *) &a->z, (mp_int *) &b->z, &m->z);
+		tm(mod)((tm(int) *) &a->z, (tm(int) *) &b->z, &m->z);
 	if(m)
 		return m;
 	else
@@ -431,53 +441,66 @@ d0_bignum_t *d0_bignum_divmod(d0_bignum_t *q, d0_bignum_t *m, const d0_bignum_t 
 d0_bignum_t *d0_bignum_mod_add(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_addmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
+	tm(addmod)((tm(int) *) &a->z, (tm(int) *) &b->z, (tm(int) *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_sub(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_submod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
+	tm(submod)((tm(int) *) &a->z, (tm(int) *) &b->z, (tm(int) *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_mul(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_mulmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
+	tm(mulmod)((tm(int) *) &a->z, (tm(int) *) &b->z, (tm(int) *) &m->z, &r->z);
 	return r;
 }
 
 d0_bignum_t *d0_bignum_mod_pow(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *b, const d0_bignum_t *m)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
-	mp_exptmod((mp_int *) &a->z, (mp_int *) &b->z, (mp_int *) &m->z, &r->z);
+	tm(exptmod)((tm(int) *) &a->z, (tm(int) *) &b->z, (tm(int) *) &m->z, &r->z);
 	return r;
 }
 
 D0_BOOL d0_bignum_mod_inv(d0_bignum_t *r, const d0_bignum_t *a, const d0_bignum_t *m)
 {
 	// here, r MUST be set, as otherwise we cannot return error state!
-	return mp_invmod((mp_int *) &a->z, (mp_int *) &m->z, &r->z) == MP_OKAY;
+	return tm(invmod)((tm(int) *) &a->z, (tm(int) *) &m->z, &r->z) == TM(OKAY);
 }
 
 int d0_bignum_isprime(const d0_bignum_t *r, int param)
 {
-	int ret = 0;
 	if(param < 1)
 		param = 1;
-	mp_prime_is_prime((mp_int *) &r->z, param, &ret);
-	return ret;
+#ifdef TOMMATH
+	{
+		int ret = 0;
+		tm(prime_is_prime)((tm(int) *) &r->z, param, &ret);
+		return ret;
+	}
+#else
+	// this does 8 rabin tests; for param > 8, do more?
+	return tm(isprime)((tm(int) *) &r->z);
+#endif
 }
 
 d0_bignum_t *d0_bignum_gcd(d0_bignum_t *r, d0_bignum_t *s, d0_bignum_t *t, const d0_bignum_t *a, const d0_bignum_t *b)
 {
 	if(!r) r = d0_bignum_new(); if(!r) return NULL;
 	if(s || t)
-		mp_exteuclid((mp_int *) &a->z, (mp_int *) &b->z, s ? &s->z : NULL, t ? &t->z : NULL, &r->z);
+	{
+#ifdef TOMMATH
+		tm(exteuclid)((tm(int) *) &a->z, (tm(int) *) &b->z, s ? &s->z : NULL, t ? &t->z : NULL, &r->z);
+#else
+		assert(!"Extended gcd not implemented");
+#endif
+	}
 	else
-		mp_gcd((mp_int *) &a->z, (mp_int *) &b->z, &r->z);
+		tm(gcd)((tm(int) *) &a->z, (tm(int) *) &b->z, &r->z);
 	return r;
 }
 
@@ -485,8 +508,8 @@ char *d0_bignum_tostring(const d0_bignum_t *x, unsigned int base)
 {
 	char *str;
 	int sz = 0;
-	mp_radix_size((mp_int *) &x->z, base, &sz);
+	tm(radix_size)((tm(int) *) &x->z, base, &sz);
 	str = d0_malloc(sz + 1);
-	mp_toradix_n((mp_int *) &x->z, str, base, sz + 1);
+	tm(toradix)((tm(int) *) &x->z, str, base);
 	return str;
 }
