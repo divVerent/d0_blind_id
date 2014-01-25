@@ -229,7 +229,7 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
 			break;
-		if(++gcdfail == 3)
+		if(++gcdfail == 16)
 			goto fail;
 		++gcdfail;
 	}
@@ -243,7 +243,7 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 		if(!d0_bignum_cmp(temp1, ctx->rsa_d))
 		{
 			UNLOCKTEMPS();
-			if(++fail == 3)
+			if(++fail == 16)
 				goto fail;
 			continue;
 		}
@@ -261,7 +261,7 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 			break;
 		}
 		UNLOCKTEMPS();
-		if(++gcdfail == 3)
+		if(++gcdfail == 16)
 			goto fail;
 		++gcdfail;
 	}
@@ -307,7 +307,7 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 		CHECK(d0_bignum_gcd(temp4, NULL, NULL, temp2, ctx->rsa_e));
 		if(!d0_bignum_cmp(temp4, one))
 			break;
-		if(++gcdfail == 3)
+		if(++gcdfail == 16)
 			return 0;
 		++gcdfail;
 	}
@@ -321,7 +321,7 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 		if(!d0_bignum_cmp(temp1, ctx->rsa_d))
 		{
 			UNLOCKTEMPS();
-			if(++fail == 3)
+			if(++fail == 16)
 				return 0;
 			continue;
 		}
@@ -348,7 +348,7 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 			break;
 		}
 		UNLOCKTEMPS();
-		if(++gcdfail == 3)
+		if(++gcdfail == 16)
 			return 0;
 		++gcdfail;
 	}
