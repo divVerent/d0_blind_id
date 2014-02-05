@@ -231,7 +231,6 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 			break;
 		if(++gcdfail == 16)
 			goto fail;
-		++gcdfail;
 	}
 	UNLOCKTEMPS();
 
@@ -263,7 +262,6 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 		UNLOCKTEMPS();
 		if(++gcdfail == 16)
 			goto fail;
-		++gcdfail;
 	}
 
 	// ctx->rsa_n = ctx->rsa_d*temp1
@@ -271,8 +269,8 @@ static D0_BOOL d0_rsa_generate_key(size_t size, d0_blind_id_t *ctx)
 
 	// ctx->rsa_d = ctx->rsa_e^-1 mod (ctx->rsa_d-1)(temp1-1)
 	CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one)); // we can't reuse the value from above because temps were unlocked
-	CHECK(d0_bignum_mul(temp0, temp2, temp3));
-	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp0));
+	CHECK(d0_bignum_mul(temp1, temp2, temp3));
+	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp1));
 	UNLOCKTEMPS();
 	return 1;
 fail:
@@ -309,7 +307,6 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 			break;
 		if(++gcdfail == 16)
 			return 0;
-		++gcdfail;
 	}
 	UNLOCKTEMPS();
 
@@ -350,13 +347,12 @@ static D0_BOOL d0_rsa_generate_key_fastreject(size_t size, d0_fastreject_functio
 		UNLOCKTEMPS();
 		if(++gcdfail == 16)
 			return 0;
-		++gcdfail;
 	}
 
 	// ctx->rsa_d = ctx->rsa_e^-1 mod (ctx->rsa_d-1)(temp1-1)
 	CHECK(d0_bignum_sub(temp2, ctx->rsa_d, one)); // we can't reuse the value from above because temps were unlocked
-	CHECK(d0_bignum_mul(ctx->rsa_d, temp2, temp3));
-	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp0));
+	CHECK(d0_bignum_mul(temp1, temp2, temp3));
+	CHECK(d0_bignum_mod_inv(ctx->rsa_d, ctx->rsa_e, temp1));
 	UNLOCKTEMPS();
 	return 1;
 fail:
