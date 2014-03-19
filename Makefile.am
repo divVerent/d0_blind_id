@@ -12,7 +12,7 @@ lib_LTLIBRARIES = libd0_blind_id.la
 
 libd0_blind_id_la_SOURCES = d0_blind_id.c d0.c d0_iobuf.c sha2.c \
                             d0_blind_id.h d0.h d0_iobuf.h sha2.h \
-			    d0_bignum.h
+                            d0_bignum.h
 
 if WITH_TOMMATH
 libd0_blind_id_la_SOURCES += d0_bignum-tommath.c
@@ -29,7 +29,7 @@ libd0_blind_id_la_SOURCES += d0_bignum-gmp.c
 endif
 endif
 endif
-libd0_blind_id_la_LDFLAGS = -versioninfo 7:0:7
+libd0_blind_id_la_LDFLAGS = -versioninfo 7:1:7
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_includedir = $(includedir)/d0_blind_id
 library_include_HEADERS = d0_blind_id.h d0.h
