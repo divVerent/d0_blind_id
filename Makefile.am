@@ -30,6 +30,7 @@ endif
 endif
 endif
 libd0_blind_id_la_LDFLAGS = -versioninfo 7:1:7
+libd0_blind_id_la_LDFLAGS += -no-undefined
 libd0_blind_id_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_includedir = $(includedir)/d0_blind_id
 library_include_HEADERS = d0_blind_id.h d0.h
@@ -41,6 +42,7 @@ lib_LTLIBRARIES += libd0_rijndael.la
 libd0_rijndael_la_SOURCES = d0_rijndael.c \
                             d0_rijndael.h
 libd0_rijndael_la_LDFLAGS = -versioninfo 0:0:0
+libd0_rijndael_la_LDFLAGS += -no-undefined
 libd0_rijndael_la_CFLAGS = -fvisibility=hidden -Wold-style-definition -Wstrict-prototypes -Wsign-compare -Wdeclaration-after-statement
 library_include_HEADERS += d0_rijndael.h
 pkgconfig_HEADERS += d0_rijndael.pc
